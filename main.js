@@ -38,7 +38,7 @@ window.onload = function () {
         this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
         this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
-        // Charger le sprite du joueur
+        // Charger le spritesheet du joueur
         this.load.spritesheet("player", "images/characters/player.png", {
             frameWidth: 32,
             frameHeight: 32
@@ -61,7 +61,6 @@ window.onload = function () {
         layers.forEach(layerName => {
             const layer = map.createLayer(layerName, [tileset1, tileset2, tileset3], 0, 0);
 
-            // Collision sur certains calques
             const collisionLayers = [
                 "water",
                 "lampadaire + bancs + panneaux",
@@ -76,7 +75,11 @@ window.onload = function () {
             if (collisionLayers.includes(layerName)) {
                 layer.setCollisionByExclusion([-1]);
                 console.log("Collision activée sur :", layerName);
-                this.physics.add.collider(player, layer);
+
+                // Activer collisions joueur / décor
+                if (player) {
+                    this.physics.add.collider(player, layer);
+                }
             }
         });
 
@@ -85,7 +88,7 @@ window.onload = function () {
         if (objectLayer) {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
-                    // Position du joueur
+                    // Spawn joueur
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 1);
                     player.setOrigin(0, 1);
                     player.setCollideWorldBounds(true);
@@ -103,7 +106,20 @@ window.onload = function () {
 
         console.log("POI trouvés :", poiData);
 
-        // Définir les animations du joueur
+        // Caméra suit le joueur
+        this.cameras.main.startFollow(player);
+        this.cameras.main.setZoom(2);
+
+        cursors = this.input.keyboard.createCursorKeys();
+        interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+
+        // Interaction box (DOM)
+        interactionBox = document.createElement("div");
+        interactionBox.id = "interaction-box";
+        interactionBox.style.display = "none";
+        document.body.appendChild(interactionBox);
+
+        // === Animations du joueur ===
         this.anims.create({
             key: "down",
             frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }),
@@ -128,19 +144,6 @@ window.onload = function () {
             frameRate: 10,
             repeat: -1
         });
-
-        // Caméra suit le joueur
-        this.cameras.main.startFollow(player);
-        this.cameras.main.setZoom(2);
-
-        cursors = this.input.keyboard.createCursorKeys();
-        interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
-
-        // Interaction box (DOM)
-        interactionBox = document.createElement("div");
-        interactionBox.id = "interaction-box";
-        interactionBox.style.display = "none";
-        document.body.appendChild(interactionBox);
     }
 
     function update() {
@@ -162,6 +165,7 @@ window.onload = function () {
             player.setVelocityY(speed);
             player.anims.play("down", true);
         } else {
+            player.setVelocity(0);
             player.anims.stop();
         }
 
