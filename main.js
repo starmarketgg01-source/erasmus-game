@@ -28,9 +28,9 @@ window.onload = function () {
     let interactionBox;
 
     function preload() {
-        console.log("🔄 Chargement...");
+        console.log("Chargement...");
 
-        // Charger la carte TMJ
+        // Charger la carte
         this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
 
         // Charger les tilesets
@@ -38,64 +38,58 @@ window.onload = function () {
         this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
         this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
-        // Générer une texture rouge pour le joueur
-        this.textures.generate("playerRed", {
-            data: ["2"],
-            pixelWidth: 16,
-            pixelHeight: 16,
-            palette: { 2: "#ff0000" }
+        // Charger le sprite du joueur
+        this.load.spritesheet("player", "images/characters/player.png", {
+            frameWidth: 32,
+            frameHeight: 32
         });
     }
 
     function create() {
-        console.log("🛠️ Création...");
+        console.log("Création...");
 
-        // Charger la carte
         map = this.make.tilemap({ key: "map" });
 
         const tileset1 = map.addTilesetImage("tileset_part1.png", "tileset_part1");
         const tileset2 = map.addTilesetImage("tileset_part2.png", "tileset_part2");
         const tileset3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
 
-        // Créer toutes les couches
         const layers = map.layers.map(l => l.name);
-        console.log("📜 Calques disponibles :", layers);
+        console.log("Calques disponibles :", layers);
 
-        const collisionLayers = [
-            "water",
-            "lampadaire + bancs + panneaux",
-            "rails",
-            "piscine",
-            "bord de map",
-            "vegetation 1",
-            "batiments 1",
-            "batiments 2"
-        ];
-
+        // Créer toutes les couches visibles
         layers.forEach(layerName => {
             const layer = map.createLayer(layerName, [tileset1, tileset2, tileset3], 0, 0);
 
+            // Collision sur certains calques
+            const collisionLayers = [
+                "water",
+                "lampadaire + bancs + panneaux",
+                "rails",
+                "piscine",
+                "bord de map",
+                "vegetation 1",
+                "batiments 1",
+                "batiments 2"
+            ];
+
             if (collisionLayers.includes(layerName)) {
                 layer.setCollisionByExclusion([-1]);
-                console.log("✅ Collision activée sur :", layerName);
-
-                // Important : ajouter collider
-                if (player) this.physics.add.collider(player, layer);
+                console.log("Collision activée sur :", layerName);
+                this.physics.add.collider(player, layer);
             }
         });
 
-        // Charger le calque des objets POI
+        // Charger le calque d'objets POI
         const objectLayer = map.getObjectLayer("POI");
         if (objectLayer) {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
-                    // Spawn joueur
-                    player = this.physics.add.sprite(obj.x, obj.y, "playerRed");
+                    // Position du joueur
+                    player = this.physics.add.sprite(obj.x, obj.y, "player", 1);
                     player.setOrigin(0, 1);
                     player.setCollideWorldBounds(true);
-                    console.log("🚶 Joueur créé en spawn_avezzano :", obj.x, obj.y);
                 } else {
-                    // Charger infos POI
                     poiData.push({
                         x: obj.x,
                         y: obj.y,
@@ -107,29 +101,42 @@ window.onload = function () {
             });
         }
 
-        console.log("📍 POI trouvés :", poiData);
+        console.log("POI trouvés :", poiData);
 
-        // Si le joueur existe, refaire les collisions
-        if (player) {
-            layers.forEach(layerName => {
-                if (collisionLayers.includes(layerName)) {
-                    const layer = map.getLayer(layerName).tilemapLayer;
-                    this.physics.add.collider(player, layer);
-                }
-            });
-        }
+        // Définir les animations du joueur
+        this.anims.create({
+            key: "down",
+            frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        this.anims.create({
+            key: "left",
+            frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        this.anims.create({
+            key: "right",
+            frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        this.anims.create({
+            key: "up",
+            frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }),
+            frameRate: 10,
+            repeat: -1
+        });
 
-        // Caméra
-        if (player) {
-            this.cameras.main.startFollow(player);
-            this.cameras.main.setZoom(2);
-        }
+        // Caméra suit le joueur
+        this.cameras.main.startFollow(player);
+        this.cameras.main.setZoom(2);
 
-        // Contrôles
         cursors = this.input.keyboard.createCursorKeys();
         interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-        // Créer la box DOM pour interactions
+        // Interaction box (DOM)
         interactionBox = document.createElement("div");
         interactionBox.id = "interaction-box";
         interactionBox.style.display = "none";
@@ -139,21 +146,26 @@ window.onload = function () {
     function update() {
         if (!player) return;
 
-        const speed = 150;
+        let speed = 150;
         player.setVelocity(0);
 
         if (cursors.left.isDown) {
             player.setVelocityX(-speed);
+            player.anims.play("left", true);
         } else if (cursors.right.isDown) {
             player.setVelocityX(speed);
-        }
-        if (cursors.up.isDown) {
+            player.anims.play("right", true);
+        } else if (cursors.up.isDown) {
             player.setVelocityY(-speed);
+            player.anims.play("up", true);
         } else if (cursors.down.isDown) {
             player.setVelocityY(speed);
+            player.anims.play("down", true);
+        } else {
+            player.anims.stop();
         }
 
-        // Vérifier proximité POI
+        // Vérifier proximité avec un POI
         currentPOI = null;
         for (let poi of poiData) {
             const dist = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
@@ -166,13 +178,11 @@ window.onload = function () {
 
         if (!currentPOI) hidePressE();
 
-        // Interaction avec POI
+        // Ouvrir interaction
         if (currentPOI && Phaser.Input.Keyboard.JustDown(interactionKey)) {
             showInteraction(currentPOI);
         }
     }
-
-    // --- UI ---
 
     function showPressE() {
         if (!document.getElementById("pressE")) {
@@ -187,7 +197,6 @@ window.onload = function () {
             e.style.color = "#fff";
             e.style.padding = "5px 10px";
             e.style.borderRadius = "5px";
-            e.style.zIndex = "1000";
             document.body.appendChild(e);
         }
     }
@@ -198,6 +207,7 @@ window.onload = function () {
     }
 
     function showInteraction(poi) {
+        // Fond assombri
         document.body.classList.add("overlay-active");
 
         interactionBox.innerHTML = `
@@ -205,7 +215,7 @@ window.onload = function () {
                 <button id="closeBox">✖</button>
                 <h2>${poi.title}</h2>
                 <p>${poi.description}</p>
-                ${poi.image ? `<img src="${poi.image}" alt="${poi.title}">` : ""}
+                ${poi.image ? `<img src="images/${poi.image}" alt="${poi.title}">` : ""}
             </div>
         `;
         interactionBox.style.display = "flex";
