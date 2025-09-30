@@ -38,10 +38,10 @@ window.onload = function () {
         this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
         this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
-        // Charger sprite du joueur
+        // Spritesheet du joueur
         this.load.spritesheet("player", "images/characters/player.png", {
-            frameWidth: 32,
-            frameHeight: 32
+            frameWidth: 128,
+            frameHeight: 128
         });
     }
 
@@ -57,7 +57,7 @@ window.onload = function () {
         const layers = map.layers.map(l => l.name);
         console.log("Calques disponibles :", layers);
 
-        // Créer toutes les couches visibles
+        // Créer toutes les couches visibles + collisions
         layers.forEach(layerName => {
             const layer = map.createLayer(layerName, [tileset1, tileset2, tileset3], 0, 0);
 
@@ -74,21 +74,19 @@ window.onload = function () {
 
             if (collisionLayers.includes(layerName)) {
                 layer.setCollisionByExclusion([-1]);
-                this.physics.add.collider(player, layer);
                 console.log("Collision activée sur :", layerName);
             }
         });
 
-        // Charger le calque d'objets POI
+        // Charger le calque POI
         const objectLayer = map.getObjectLayer("POI");
         if (objectLayer) {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
-                    // Spawn du joueur
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 1);
-                    player.setOrigin(0, 1);
+                    player.setOrigin(0.5, 0.8);
                     player.setCollideWorldBounds(true);
-                    player.setScale(0.9); // perso légèrement réduit
+                    player.setScale(0.25); // réduction style Pokémon
                 } else {
                     poiData.push({
                         x: obj.x,
@@ -103,40 +101,41 @@ window.onload = function () {
 
         console.log("POI trouvés :", poiData);
 
-        // Caméra suit le joueur
+        // Caméra
         this.cameras.main.startFollow(player);
-        this.cameras.main.setZoom(0.8); // zoom reculé pour voir + large
+        this.cameras.main.setZoom(2);
+
+        // Touches
+        cursors = this.input.keyboard.createCursorKeys();
+        interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
         // Animations du joueur
         this.anims.create({
             key: "down",
             frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }),
-            frameRate: 8,
+            frameRate: 10,
             repeat: -1
         });
         this.anims.create({
             key: "left",
             frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }),
-            frameRate: 8,
+            frameRate: 10,
             repeat: -1
         });
         this.anims.create({
             key: "right",
             frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }),
-            frameRate: 8,
+            frameRate: 10,
             repeat: -1
         });
         this.anims.create({
             key: "up",
             frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }),
-            frameRate: 8,
+            frameRate: 10,
             repeat: -1
         });
 
-        cursors = this.input.keyboard.createCursorKeys();
-        interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
-
-        // Interaction box (DOM)
+        // Interaction box
         interactionBox = document.createElement("div");
         interactionBox.id = "interaction-box";
         interactionBox.style.display = "none";
@@ -165,7 +164,7 @@ window.onload = function () {
             player.anims.stop();
         }
 
-        // Vérifier proximité avec un POI
+        // Vérifier proximité POI
         currentPOI = null;
         for (let poi of poiData) {
             const dist = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
@@ -207,7 +206,6 @@ window.onload = function () {
     }
 
     function showInteraction(poi) {
-        // Fond assombri
         document.body.classList.add("overlay-active");
 
         interactionBox.innerHTML = `
@@ -226,4 +224,3 @@ window.onload = function () {
         };
     }
 };
-
