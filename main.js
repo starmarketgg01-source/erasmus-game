@@ -12,20 +12,19 @@ window.onload = function () {
 
     let player, cursors, map, poiData = [], interactionKey, currentPOI = null, interactionBox;
     let joystick, interactBtn;
-    let minimapCam, playerMiniArrow;
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     function preload() {
+        // Map
         this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
         this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
         this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
         this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
-        // 🎯 Sprite joueur correctement découpé
-        // Image 433x577, 12 frames (3 cols x 4 rows)
+        // Joueur (spritesheet)
         this.load.spritesheet("player", "images/characters/player.png", {
-            frameWidth: Math.floor(433 / 3), // 144
-            frameHeight: Math.floor(577 / 4) // 144
+            frameWidth: 144,  // largeur frame
+            frameHeight: 144  // hauteur frame
         });
 
         if (isMobile) {
@@ -43,14 +42,14 @@ window.onload = function () {
         const tileset2 = map.addTilesetImage("tileset_part2.png", "tileset_part2");
         const tileset3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
 
-        // Spawn joueur et POI
+        // Spawn + POI
         const objectLayer = map.getObjectLayer("POI");
         if (objectLayer) {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
-                    player.setOrigin(0, 1); // bas du sprite = collision
-                    player.setScale(1);      // taille normale, visible
+                    player.setOrigin(0.5, 1);
+                    player.setScale(0.5); // 🟢 Ajuste la taille (plus petit)
                     player.setCollideWorldBounds(true);
                 } else {
                     poiData.push({
@@ -63,63 +62,26 @@ window.onload = function () {
             });
         }
 
-        // Calques et collisions
+        // Collisions
         const collisionLayers = ["water", "rails", "bord de map", "vegetation 1", "vegetation 2", "batiments 1", "batiments 2"];
         map.layers.forEach(layerData => {
             const name = layerData.name;
-            if (["lampadaire + bancs + panneaux", "lampadaire_base", "lampadaire_haut"].includes(name)) return;
             const layer = map.createLayer(name, [tileset1, tileset2, tileset3], 0, 0);
-            if (collisionLayers.includes(name)) this.physics.add.collider(player, layer);
+            if (collisionLayers.includes(name)) {
+                layer.setCollisionByExclusion([-1]);
+                this.physics.add.collider(player, layer);
+            }
         });
 
-        // Décor bancs + panneaux
-        const decorLayer = map.createLayer("lampadaire + bancs + panneaux", [tileset1, tileset2, tileset3], 0, 0);
-        decorLayer.setCollisionByExclusion([-1]);
-        this.physics.add.collider(player, decorLayer);
-
-        // Lampadaire base
-        const lampBaseLayer = map.createLayer("lampadaire_base", [tileset1, tileset2, tileset3], 0, 0);
-        lampBaseLayer.setCollisionByExclusion([-1]);
-        this.physics.add.collider(player, lampBaseLayer);
-
-        // Lampadaire haut (devant joueur)
-        const lampHighLayer = map.createLayer("lampadaire_haut", [tileset1, tileset2, tileset3], 0, 0);
-
-        // Caméra principale
+        // Caméra
         this.cameras.main.startFollow(player, true, 0.1, 0.1);
-        this.cameras.main.setZoom(3);
+        this.cameras.main.setZoom(2.5);
 
-        // Mini-map haut droite
-        const miniCamWidth = 200;
-        const miniCamHeight = 150;
-        const miniCamZoom = 0.2;
-        minimapCam = this.cameras.add(window.innerWidth - miniCamWidth - 10, 10, miniCamWidth, miniCamHeight)
-            .setZoom(miniCamZoom)
-            .startFollow(player);
-
-        lampHighLayer.setVisible(false, minimapCam);
-
-        const miniMapBg = this.add.graphics();
-        miniMapBg.fillStyle(0x000000, 0.3);
-        miniMapBg.fillRoundedRect(minimapCam.x - 5, minimapCam.y - 5, miniCamWidth + 10, miniCamHeight + 10, 8);
-        miniMapBg.lineStyle(2, 0xffffff, 1);
-        miniMapBg.strokeRoundedRect(minimapCam.x - 5, minimapCam.y - 5, miniCamWidth + 10, miniCamHeight + 10, 8);
-        miniMapBg.setScrollFactor(0);
-        miniMapBg.setDepth(1000);
-
-        // Flèche joueur mini-map
-        playerMiniArrow = this.add.triangle(
-            minimapCam.x + miniCamWidth / 2,
-            minimapCam.y + miniCamHeight / 2,
-            0, 16, 16, 16, 8, 0,
-            0xff0000
-        ).setScrollFactor(0).setDepth(1001);
-
-        // Clavier
+        // Contrôles
         cursors = this.input.keyboard.createCursorKeys();
         interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-        // Interaction box
+        // Fenêtre POI
         interactionBox = document.createElement("div");
         interactionBox.id = "interaction-box";
         interactionBox.style.display = "none";
@@ -131,11 +93,10 @@ window.onload = function () {
         this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }), frameRate: 10, repeat: -1 });
         this.anims.create({ key: "up", frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }), frameRate: 10, repeat: -1 });
 
-        // Mobile
+        // Mobile joystick
         if (isMobile) {
             joystick = this.rexUI.add.joystick({
-                x: 100,
-                y: window.innerHeight - 100,
+                x: 100, y: window.innerHeight - 100,
                 radius: 50,
                 base: this.add.circle(0, 0, 50, 0x888888, 0.5),
                 thumb: this.add.circle(0, 0, 25, 0xcccccc, 0.8),
@@ -165,10 +126,9 @@ window.onload = function () {
 
     function update() {
         if (!player) return;
-        const speed = 150;
+        const speed = 120;
         player.setVelocity(0);
 
-        // Mobile joystick
         if (isMobile && joystick) {
             const force = joystick.force;
             const angle = joystick.angle;
@@ -182,7 +142,6 @@ window.onload = function () {
                 else player.anims.play("up", true);
             } else player.anims.stop();
         } else {
-            // Clavier PC
             if (cursors.left.isDown) { player.setVelocityX(-speed); player.anims.play("left", true); }
             else if (cursors.right.isDown) { player.setVelocityX(speed); player.anims.play("right", true); }
             else if (cursors.up.isDown) { player.setVelocityY(-speed); player.anims.play("up", true); }
@@ -190,21 +149,7 @@ window.onload = function () {
             else player.anims.stop();
         }
 
-        player.setDepth(player.y);
-
-        // Mini-map flèche
-        playerMiniArrow.x = minimapCam.worldView.x + player.x * 0.2;
-        playerMiniArrow.y = minimapCam.worldView.y + player.y * 0.2;
-
-        if (player.anims.currentAnim) {
-            const dir = player.anims.currentAnim.key;
-            if (dir === "up") playerMiniArrow.rotation = 0;
-            else if (dir === "right") playerMiniArrow.rotation = Phaser.Math.DegToRad(90);
-            else if (dir === "down") playerMiniArrow.rotation = Phaser.Math.DegToRad(180);
-            else if (dir === "left") playerMiniArrow.rotation = Phaser.Math.DegToRad(-90);
-        }
-
-        // POI
+        // POI interaction
         currentPOI = null;
         for (let poi of poiData) {
             const dist = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
@@ -219,14 +164,6 @@ window.onload = function () {
             const e = document.createElement("div");
             e.id = "pressE";
             e.innerText = "Appuie sur E";
-            e.style.position = "absolute";
-            e.style.top = "20px";
-            e.style.left = "50%";
-            e.style.transform = "translateX(-50%)";
-            e.style.background = "rgba(0,0,0,0.7)";
-            e.style.color = "#fff";
-            e.style.padding = "5px 10px";
-            e.style.borderRadius = "5px";
             document.body.appendChild(e);
         }
     }
