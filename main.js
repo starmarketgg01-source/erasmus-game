@@ -9,7 +9,16 @@ window.onload = function () {
     parent: "game",
     physics: { default: "arcade", arcade: { debug: false } },
     scene: { preload, create, update }
-  };
+    plugins: {
+    scene: [
+      {
+        key: 'rexVirtualJoystick',
+        plugin: rexvirtualjoystickplugin,
+        mapping: 'rexUI'
+       }
+     ]
+   }
+};
 
   const game = new Phaser.Game(config);
 
