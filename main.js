@@ -4,57 +4,100 @@ window.onload = function () {
         width: window.innerWidth,
         height: window.innerHeight,
         parent: "game",
-        physics: { default: "arcade", arcade: { debug: false } },
-        scene: { preload, create, update }
+        physics: {
+            default: "arcade",
+            arcade: {
+                debug: false
+            }
+        },
+        scene: {
+            preload: preload,
+            create: create,
+            update: update
+        }
     };
 
     const game = new Phaser.Game(config);
 
-    let player, cursors, map, poiData = [], interactionKey, currentPOI = null, interactionBox;
-    let joystick, interactBtn;
-    let minimapCam, playerMiniArrow;
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    let player, cursors, map;
+    let poiData = [];
+    let interactionKey;
+    let currentPOI = null;
+    let interactionBox;
+
+    // === Mobile joystick + bouton E ===
+    let joystick, interactButton;
+    let isMobile = /Mobi|Android/i.test(navigator.userAgent);
+
+    // === Mini-map ===
+    let minimap;
+    let arrow;
 
     function preload() {
+        console.log("Chargement...");
+
+        // Charger la carte
         this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
+
+        // Charger les tilesets
         this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
         this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
         this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
-        // 🎯 Sprite joueur correctement découpé
-        // Image 433x577, 12 frames (3 cols x 4 rows)
+        // Charger spritesheet du joueur (12 frames, 3 colonnes × 4 lignes)
         this.load.spritesheet("player", "images/characters/player.png", {
-            frameWidth: Math.floor(433 / 3), // 144
-            frameHeight: Math.floor(577 / 4) // 144
+            frameWidth: 144,
+            frameHeight: 144
         });
 
-        if (isMobile) {
-            this.load.scenePlugin({
-                key: 'rexvirtualjoystickplugin',
-                url: 'https://cdn.jsdelivr.net/npm/phaser3-rex-plugins/dist/rexvirtualjoystickplugin.min.js',
-                sceneKey: 'rexUI'
-            });
-        }
+        // Joystick plugin (phaser3-nipplejs par exemple si dispo)
+        this.load.plugin('rexvirtualjoystickplugin',
+            'https://raw.githubusercontent.com/rexrainbow/phaser3-rex-notes/master/dist/rexvirtualjoystickplugin.min.js',
+            true);
     }
 
     function create() {
+        console.log("Création...");
+
         map = this.make.tilemap({ key: "map" });
+
         const tileset1 = map.addTilesetImage("tileset_part1.png", "tileset_part1");
         const tileset2 = map.addTilesetImage("tileset_part2.png", "tileset_part2");
         const tileset3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
 
-        // Spawn joueur et POI
+        // Charger toutes les couches
+        map.layers.forEach(layerData => {
+            let layer = map.createLayer(layerData.name, [tileset1, tileset2, tileset3], 0, 0);
+
+            // Collision sur certains calques
+            const collisionLayers = [
+                "water", "rails", "piscine", "bord de map",
+                "vegetation 1", "vegetation 2",
+                "batiments 1", "batiments 2",
+                "lampadaire + bancs + panneaux"
+            ];
+            if (collisionLayers.includes(layerData.name)) {
+                layer.setCollisionByExclusion([-1]);
+            }
+
+            if (layerData.name === "lampadaire_base") {
+                layer.setCollisionByExclusion([-1]);
+            }
+        });
+
+        // POI
         const objectLayer = map.getObjectLayer("POI");
         if (objectLayer) {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
-                    player.setOrigin(0, 1); // bas du sprite = collision
-                    player.setScale(1);      // taille normale, visible
+                    player.setOrigin(0, 1);
+                    player.setScale(1.2); // ✅ joueur réaliste
                     player.setCollideWorldBounds(true);
                 } else {
                     poiData.push({
-                        x: obj.x, y: obj.y,
+                        x: obj.x,
+                        y: obj.y,
                         title: obj.properties.find(p => p.name === "title")?.value || obj.name,
                         description: obj.properties.find(p => p.name === "text")?.value || "Aucune description disponible.",
                         image: obj.properties.find(p => p.name === "media")?.value || null
@@ -63,59 +106,10 @@ window.onload = function () {
             });
         }
 
-        // Calques et collisions
-        const collisionLayers = ["water", "rails", "bord de map", "vegetation 1", "vegetation 2", "batiments 1", "batiments 2"];
-        map.layers.forEach(layerData => {
-            const name = layerData.name;
-            if (["lampadaire + bancs + panneaux", "lampadaire_base", "lampadaire_haut"].includes(name)) return;
-            const layer = map.createLayer(name, [tileset1, tileset2, tileset3], 0, 0);
-            if (collisionLayers.includes(name)) this.physics.add.collider(player, layer);
-        });
+        // Caméra
+        this.cameras.main.startFollow(player);
+        this.cameras.main.setZoom(2.5);
 
-        // Décor bancs + panneaux
-        const decorLayer = map.createLayer("lampadaire + bancs + panneaux", [tileset1, tileset2, tileset3], 0, 0);
-        decorLayer.setCollisionByExclusion([-1]);
-        this.physics.add.collider(player, decorLayer);
-
-        // Lampadaire base
-        const lampBaseLayer = map.createLayer("lampadaire_base", [tileset1, tileset2, tileset3], 0, 0);
-        lampBaseLayer.setCollisionByExclusion([-1]);
-        this.physics.add.collider(player, lampBaseLayer);
-
-        // Lampadaire haut (devant joueur)
-        const lampHighLayer = map.createLayer("lampadaire_haut", [tileset1, tileset2, tileset3], 0, 0);
-
-        // Caméra principale
-        this.cameras.main.startFollow(player, true, 0.1, 0.1);
-        this.cameras.main.setZoom(3);
-
-        // Mini-map haut droite
-        const miniCamWidth = 200;
-        const miniCamHeight = 150;
-        const miniCamZoom = 0.2;
-        minimapCam = this.cameras.add(window.innerWidth - miniCamWidth - 10, 10, miniCamWidth, miniCamHeight)
-            .setZoom(miniCamZoom)
-            .startFollow(player);
-
-        lampHighLayer.setVisible(false, minimapCam);
-
-        const miniMapBg = this.add.graphics();
-        miniMapBg.fillStyle(0x000000, 0.3);
-        miniMapBg.fillRoundedRect(minimapCam.x - 5, minimapCam.y - 5, miniCamWidth + 10, miniCamHeight + 10, 8);
-        miniMapBg.lineStyle(2, 0xffffff, 1);
-        miniMapBg.strokeRoundedRect(minimapCam.x - 5, minimapCam.y - 5, miniCamWidth + 10, miniCamHeight + 10, 8);
-        miniMapBg.setScrollFactor(0);
-        miniMapBg.setDepth(1000);
-
-        // Flèche joueur mini-map
-        playerMiniArrow = this.add.triangle(
-            minimapCam.x + miniCamWidth / 2,
-            minimapCam.y + miniCamHeight / 2,
-            0, 16, 16, 16, 8, 0,
-            0xff0000
-        ).setScrollFactor(0).setDepth(1001);
-
-        // Clavier
         cursors = this.input.keyboard.createCursorKeys();
         interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
@@ -125,95 +119,114 @@ window.onload = function () {
         interactionBox.style.display = "none";
         document.body.appendChild(interactionBox);
 
-        // Animations
+        // Animations joueur
         this.anims.create({ key: "down", frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }), frameRate: 10, repeat: -1 });
         this.anims.create({ key: "left", frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }), frameRate: 10, repeat: -1 });
         this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }), frameRate: 10, repeat: -1 });
         this.anims.create({ key: "up", frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }), frameRate: 10, repeat: -1 });
 
-        // Mobile
+        // ✅ Mini-map
+        minimap = this.cameras.add(config.width - 220, 20, 200, 200).setZoom(0.1).setName('mini');
+        minimap.setBackgroundColor(0x002244);
+        minimap.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+        minimap.startFollow(player);
+
+        // Flèche du joueur
+        arrow = this.add.triangle(0, 0, 0, 20, 10, 0, 20, 20, 0xff0000);
+        arrow.setScale(3);
+        arrow.setDepth(2000);
+
+        // === Mobile ===
         if (isMobile) {
-            joystick = this.rexUI.add.joystick({
+            joystick = this.plugins.get('rexvirtualjoystickplugin').add(this, {
                 x: 100,
-                y: window.innerHeight - 100,
+                y: config.height - 100,
                 radius: 50,
-                base: this.add.circle(0, 0, 50, 0x888888, 0.5),
-                thumb: this.add.circle(0, 0, 25, 0xcccccc, 0.8),
+                base: this.add.circle(0, 0, 50, 0x888888),
+                thumb: this.add.circle(0, 0, 25, 0xcccccc),
             });
 
-            interactBtn = document.createElement("div");
-            interactBtn.id = "interactBtn";
-            interactBtn.innerText = "E";
-            interactBtn.style.position = "absolute";
-            interactBtn.style.bottom = "100px";
-            interactBtn.style.right = "20px";
-            interactBtn.style.width = "60px";
-            interactBtn.style.height = "60px";
-            interactBtn.style.background = "rgba(0,0,0,0.6)";
-            interactBtn.style.color = "#fff";
-            interactBtn.style.fontSize = "32px";
-            interactBtn.style.borderRadius = "50%";
-            interactBtn.style.display = "flex";
-            interactBtn.style.alignItems = "center";
-            interactBtn.style.justifyContent = "center";
-            interactBtn.style.zIndex = "999";
-            document.body.appendChild(interactBtn);
+            interactButton = this.add.text(config.width - 100, config.height - 100, 'E', {
+                fontSize: '32px',
+                backgroundColor: '#000',
+                color: '#fff',
+                padding: { x: 20, y: 10 }
+            }).setInteractive();
 
-            interactBtn.addEventListener("click", () => { if (currentPOI) showInteraction(currentPOI); });
+            interactButton.on('pointerdown', () => {
+                if (currentPOI) showInteraction(currentPOI);
+            });
         }
+
+        // Collisions joueur
+        map.layers.forEach(layerData => {
+            let layer = map.getLayer(layerData.name)?.tilemapLayer;
+            if (layer && layer.collideIndexes.length > 0) {
+                this.physics.add.collider(player, layer);
+            }
+        });
+
+        // ✅ Assurer que lampadaire_haut est toujours devant
+        const lampHighLayer = map.getLayer("lampadaire_haut")?.tilemapLayer;
+        if (lampHighLayer) lampHighLayer.setDepth(1000);
     }
 
     function update() {
         if (!player) return;
-        const speed = 150;
+
+        let speed = 150;
         player.setVelocity(0);
 
-        // Mobile joystick
-        if (isMobile && joystick) {
-            const force = joystick.force;
-            const angle = joystick.angle;
-            if (force > 0) {
-                const rad = Phaser.Math.DegToRad(angle);
-                player.setVelocityX(Math.cos(rad) * speed * force);
-                player.setVelocityY(Math.sin(rad) * speed * force);
-                if (angle >= -45 && angle <= 45) player.anims.play("right", true);
-                else if (angle >= 135 || angle <= -135) player.anims.play("left", true);
-                else if (angle > 45 && angle < 135) player.anims.play("down", true);
-                else player.anims.play("up", true);
-            } else player.anims.stop();
-        } else {
-            // Clavier PC
+        // PC clavier
+        if (!isMobile) {
             if (cursors.left.isDown) { player.setVelocityX(-speed); player.anims.play("left", true); }
             else if (cursors.right.isDown) { player.setVelocityX(speed); player.anims.play("right", true); }
             else if (cursors.up.isDown) { player.setVelocityY(-speed); player.anims.play("up", true); }
             else if (cursors.down.isDown) { player.setVelocityY(speed); player.anims.play("down", true); }
-            else player.anims.stop();
+            else { player.setVelocity(0); player.anims.stop(); }
         }
 
+        // Mobile joystick
+        if (isMobile && joystick) {
+            let forceX = joystick.forceX;
+            let forceY = joystick.forceY;
+            player.setVelocity(forceX * 2, forceY * 2);
+
+            if (Math.abs(forceX) > Math.abs(forceY)) {
+                player.anims.play(forceX > 0 ? "right" : "left", true);
+            } else if (Math.abs(forceY) > 0) {
+                player.anims.play(forceY > 0 ? "down" : "up", true);
+            } else {
+                player.anims.stop();
+            }
+        }
+
+        // Profondeur dynamique
         player.setDepth(player.y);
 
-        // Mini-map flèche
-        playerMiniArrow.x = minimapCam.worldView.x + player.x * 0.2;
-        playerMiniArrow.y = minimapCam.worldView.y + player.y * 0.2;
+        // Flèche mini-map
+        arrow.x = player.x;
+        arrow.y = player.y;
+        arrow.rotation = player.body.velocity.angle();
 
-        if (player.anims.currentAnim) {
-            const dir = player.anims.currentAnim.key;
-            if (dir === "up") playerMiniArrow.rotation = 0;
-            else if (dir === "right") playerMiniArrow.rotation = Phaser.Math.DegToRad(90);
-            else if (dir === "down") playerMiniArrow.rotation = Phaser.Math.DegToRad(180);
-            else if (dir === "left") playerMiniArrow.rotation = Phaser.Math.DegToRad(-90);
-        }
-
-        // POI
+        // POI proximité
         currentPOI = null;
         for (let poi of poiData) {
             const dist = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
-            if (dist < 40) { currentPOI = poi; if (!isMobile) showPressE(); break; }
+            if (dist < 40) {
+                currentPOI = poi;
+                if (!isMobile) showPressE();
+                break;
+            }
         }
         if (!currentPOI && !isMobile) hidePressE();
-        if (!isMobile && currentPOI && Phaser.Input.Keyboard.JustDown(interactionKey)) showInteraction(currentPOI);
+
+        if (currentPOI && !isMobile && Phaser.Input.Keyboard.JustDown(interactionKey)) {
+            showInteraction(currentPOI);
+        }
     }
 
+    // UI interaction
     function showPressE() {
         if (!document.getElementById("pressE")) {
             const e = document.createElement("div");
@@ -231,19 +244,21 @@ window.onload = function () {
         }
     }
 
-    function hidePressE() { const e = document.getElementById("pressE"); if (e) e.remove(); }
+    function hidePressE() {
+        const e = document.getElementById("pressE");
+        if (e) e.remove();
+    }
 
     function showInteraction(poi) {
         document.body.classList.add("overlay-active");
-        let imgPath = poi.image;
-        if (imgPath && !imgPath.startsWith("images/")) imgPath = "images/" + imgPath;
         interactionBox.innerHTML = `
             <div class="interaction-content">
                 <button id="closeBox">✖</button>
                 <h2>${poi.title}</h2>
                 <p>${poi.description}</p>
-                ${imgPath ? `<img src="${imgPath}" alt="${poi.title}">` : ""}
-            </div>`;
+                ${poi.image ? `<img src="images/${poi.image}" alt="${poi.title}">` : ""}
+            </div>
+        `;
         interactionBox.style.display = "flex";
         document.getElementById("closeBox").onclick = () => {
             interactionBox.style.display = "none";
@@ -251,3 +266,4 @@ window.onload = function () {
         };
     }
 };
+
