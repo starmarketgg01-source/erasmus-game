@@ -118,6 +118,7 @@ window.onload = function () {
         // Clavier
         cursors = this.input.keyboard.createCursorKeys();
         interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+        this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 
         // Interaction box
         interactionBox = document.createElement("div");
@@ -163,10 +164,16 @@ window.onload = function () {
         }
     }
 
-    function update() {
-        if (!player) return;
-        const speed = 70;
-        player.setVelocity(0);
+function update() {
+    if (!player) return;
+
+    // Vérifie si shift est pressé
+    const isRunning = this.shiftKey && this.shiftKey.isDown;
+    const speed = isRunning ? 150 : 70;   // 🔥 vitesse x2
+    const frameRate = isRunning ? 10 : 5; // 🔥 animation plus rapide
+
+    player.setVelocity(0);
+
 
         // Mobile
         if (isMobile && joystick) {
