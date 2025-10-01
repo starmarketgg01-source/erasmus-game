@@ -28,7 +28,7 @@ window.onload = function () {
     let interactionBox;
 
     function preload() {
-        console.log("Chargement...");
+        console.log("Chargement…");
 
         // Charger la carte
         this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
@@ -38,7 +38,7 @@ window.onload = function () {
         this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
         this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
-        // Charger sprite du joueur
+        // Spritesheet du joueur
         this.load.spritesheet("player", "images/characters/player.png", {
             frameWidth: 32,
             frameHeight: 32
@@ -46,7 +46,7 @@ window.onload = function () {
     }
 
     function create() {
-        console.log("Création...");
+        console.log("Création…");
 
         map = this.make.tilemap({ key: "map" });
 
@@ -61,6 +61,7 @@ window.onload = function () {
         layers.forEach(layerName => {
             const layer = map.createLayer(layerName, [tileset1, tileset2, tileset3], 0, 0);
 
+            // Collision sur certains calques
             const collisionLayers = [
                 "water",
                 "lampadaire + bancs + panneaux",
@@ -74,21 +75,20 @@ window.onload = function () {
 
             if (collisionLayers.includes(layerName)) {
                 layer.setCollisionByExclusion([-1]);
-                this.physics.add.collider(player, layer);
                 console.log("Collision activée sur :", layerName);
             }
         });
 
-        // Charger le calque d'objets POI
+        // Charger le calque d’objets POI
         const objectLayer = map.getObjectLayer("POI");
         if (objectLayer) {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
                     // Spawn du joueur
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 1);
-                    player.setOrigin(0, 1);
+                    player.setOrigin(0.5, 0.5);
                     player.setCollideWorldBounds(true);
-                    player.setScale(0.9); // perso légèrement réduit
+                    player.setScale(1); // taille correcte du sprite
                 } else {
                     poiData.push({
                         x: obj.x,
@@ -102,10 +102,6 @@ window.onload = function () {
         }
 
         console.log("POI trouvés :", poiData);
-
-        // Caméra suit le joueur
-        this.cameras.main.startFollow(player);
-        this.cameras.main.setZoom(0.8); // zoom reculé pour voir + large
 
         // Animations du joueur
         this.anims.create({
@@ -132,6 +128,10 @@ window.onload = function () {
             frameRate: 8,
             repeat: -1
         });
+
+        // Caméra suit le joueur
+        this.cameras.main.startFollow(player);
+        this.cameras.main.setZoom(1.2); // zoom équilibré
 
         cursors = this.input.keyboard.createCursorKeys();
         interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
