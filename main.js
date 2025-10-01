@@ -52,22 +52,23 @@ window.onload = function () {
         // 2️⃣ Calques et collisions
         // -------------------------------
 
-        // Bancs + panneaux
+        // 2a️⃣ Bancs + panneaux
         const decorLayer = map.createLayer("lampadaire + bancs + panneaux", [tileset1, tileset2, tileset3], 0, 0);
         decorLayer.setCollisionByExclusion([-1]);
         this.physics.add.collider(player, decorLayer);
 
-        // Lampadaire base (collision)
+        // 2b️⃣ Lampadaire base (collision)
         const lampBaseLayer = map.createLayer("lampadaire_base", [tileset1, tileset2, tileset3], 0, 0);
         lampBaseLayer.setCollisionByExclusion([-1]);
         this.physics.add.collider(player, lampBaseLayer);
 
-        // Lampadaire haut (visuel)
+        // 2c️⃣ Lampadaire haut (visuel)
         const lampHighLayer = map.createLayer("lampadaire_haut", [tileset1, tileset2, tileset3], 0, 0);
+        // On donne une profondeur dynamique selon y pour effet top-down réaliste
         lampHighLayer.forEachTile(tile => {
-            if (tile.index !== -1) {
-                // chaque tile a sa profondeur = sa position Y pour effet top-down
-                if (tile.tilemapLayer) tile.tilemapLayer.setDepth(tile.pixelY);
+            if (tile.index !== -1 && tile.tilemapLayer) {
+                // Chaque tile a sa profondeur = sa position Y
+                tile.tilemapLayer.setDepth(tile.pixelY);
             }
         });
 
@@ -163,3 +164,4 @@ window.onload = function () {
         };
     }
 };
+
