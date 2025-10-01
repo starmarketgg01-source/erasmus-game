@@ -42,15 +42,6 @@ window.onload = function () {
       frameWidth: 144,
       frameHeight: 144
     });
-
-    // Mobile joystick plugin
-    if (isMobile) {
-      this.load.scenePlugin({
-        key: "rexvirtualjoystickplugin",
-        url: "https://cdn.jsdelivr.net/npm/phaser3-rex-plugins/dist/rexvirtualjoystickplugin.min.js",
-        sceneKey: "rexUI"
-      });
-    }
   }
 
   // --------------------------------
@@ -92,13 +83,11 @@ window.onload = function () {
     const decorLayer = map.createLayer("lampadaire + bancs + panneaux", tilesets, 0, 0);
     if (decorLayer) decorLayer.setCollisionByExclusion([-1]);
 
-    // Lampadaire base = plus de collisions (passe derrière)
+    // Lampadaires (base et haut sans collisions)
     const lampBaseLayer = map.createLayer("lampadaire_base", tilesets, 0, 0);
-    if (lampBaseLayer) lampBaseLayer.setDepth(9998);
-
-    // Lampadaire haut (devant joueur)
+    if (lampBaseLayer) lampBaseLayer.setDepth(999); // derrière joueur
     const lampTopLayer = map.createLayer("lampadaire_haut", tilesets, 0, 0);
-    if (lampTopLayer) lampTopLayer.setDepth(9999);
+    if (lampTopLayer) lampTopLayer.setDepth(9999); // devant joueur
 
     // --- Spawn + POI from object layer ---
     const objLayer = map.getObjectLayer("POI");
@@ -164,13 +153,13 @@ window.onload = function () {
     interactionBox.style.display = "none";
     document.body.appendChild(interactionBox);
 
-    // --- Animations (walk base = 5 FPS; we will boost via timeScale when running) ---
+    // --- Animations ---
     this.anims.create({ key: "down",  frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }),  frameRate: 5, repeat: -1 });
     this.anims.create({ key: "left",  frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }),  frameRate: 5, repeat: -1 });
     this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }),  frameRate: 5, repeat: -1 });
     this.anims.create({ key: "up",    frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }), frameRate: 5, repeat: -1 });
 
-    // --- Dust particles (only when running) ---
+    // --- Dust particles ---
     const g = this.make.graphics({ x: 0, y: 0, add: false });
     g.fillStyle(0xffffff, 1).fillCircle(4, 4, 4);
     g.generateTexture("dust", 8, 8);
@@ -187,13 +176,13 @@ window.onload = function () {
     dustEmitter.startFollow(player, 0, -6);
 
     // --- Mobile UI: joystick + E button ---
-    if (isMobile && this.rexUI) {
-      joystick = this.rexUI.addJoystick({
-        x: window.innerWidth / 2, // ✅ centré en bas
+    if (isMobile) {
+      joystick = this.plugins.get('rexvirtualjoystickplugin').add(this, {
+        x: window.innerWidth / 2,   // centré au milieu bas
         y: window.innerHeight - 100,
-        radius: 55,
-        base: this.add.circle(0, 0, 55, 0x666666, 0.5),
-        thumb: this.add.circle(0, 0, 28, 0xcccccc, 0.9)
+        radius: 70,
+        base: this.add.circle(0, 0, 70, 0x666666, 0.4),
+        thumb: this.add.circle(0, 0, 35, 0xcccccc, 0.8),
       });
 
       interactBtn = document.createElement("div");
@@ -217,6 +206,9 @@ window.onload = function () {
       document.body.appendChild(interactBtn);
       interactBtn.addEventListener("click", () => { if (currentPOI) showInteraction(currentPOI); });
     }
+
+    console.log("Layers:", map.layers.map(l => l.name));
+    console.log("POI:", poiData);
   }
 
   // --------------------------------
@@ -225,13 +217,11 @@ window.onload = function () {
   function update() {
     if (!player) return;
 
-    // Run (Shift) → speed x2, animation faster via timeScale
     const isRunning = shiftKey && shiftKey.isDown;
     const speed = isRunning ? 150 : 70;
 
     player.setVelocity(0);
 
-    // --- Inputs (PC) ---
     let moved = false;
     if (!isMobile) {
       if (cursors.left.isDown)  { player.setVelocityX(-speed); playAnim("left",  isRunning);  moved = true; }
@@ -241,7 +231,6 @@ window.onload = function () {
       else { player.anims.stop(); }
     }
 
-    // --- Inputs (Mobile) ---
     if (isMobile && joystick) {
       const f = joystick.force, angle = joystick.angle;
       if (f > 0) {
@@ -259,18 +248,11 @@ window.onload = function () {
       }
     }
 
-    // Depth sort
     player.setDepth(player.y);
 
-    // Dust only when running AND moving
     const moving = Math.abs(player.body.velocity.x) > 1 || Math.abs(player.body.velocity.y) > 1;
     dustEmitter.on = isRunning && moving;
-    if (isRunning && moving) {
-      dustEmitter.setSpeed({ min: -60, max: 60 });
-      dustEmitter.setAlpha({ start: 0.8, end: 0 });
-    }
 
-    // Mini-map arrow orientation + position
     if (player.anims.currentAnim) {
       const dir = player.anims.currentAnim.key;
       if      (dir === "up")    playerMiniArrow.rotation = 0;
@@ -281,7 +263,6 @@ window.onload = function () {
     playerMiniArrow.x = minimapCam.worldView.x + player.x * minimapCam.zoom;
     playerMiniArrow.y = minimapCam.worldView.y + player.y * minimapCam.zoom;
 
-    // --- POI proximity + E interaction ---
     currentPOI = null;
     for (let poi of poiData) {
       const d = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
@@ -300,7 +281,7 @@ window.onload = function () {
     if (player.anims.currentAnim?.key !== key) {
       player.anims.play(key, true);
     }
-    player.anims.timeScale = isRunning ? 2 : 1; // 5 fps → ~10 fps en run
+    player.anims.timeScale = isRunning ? 2 : 1;
   }
 
   function showPressE() {
