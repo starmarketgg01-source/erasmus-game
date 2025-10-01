@@ -1,18 +1,23 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Erasmus Game</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- Phaser -->
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Erasmus Game</title>
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Phaser (version stable) -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
+
+  <!-- ✅ Plugin joystick Rex : DOIT être chargé avant main.js -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser3-rex-plugins/dist/rexvirtualjoystickplugin.min.js"></script>
 </head>
 <body>
-    <!-- Conteneur du jeu -->
-    <div id="game"></div>
+  <!-- Conteneur du jeu -->
+  <div id="game"></div>
 
-    <!-- Script principal -->
-    <script src="main.js"></script>
+  <!-- Script principal -->
+  <script src="main.js"></script>
 </body>
 </html>
+
