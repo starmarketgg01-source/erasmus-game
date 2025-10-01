@@ -62,10 +62,12 @@ window.onload = function () {
         if (objectLayer) {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
-                    // ⚠️ Frame 0 pour éviter un sprite invisible
+                    // Frame 0 pour éviter un sprite invisible
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
                     player.setOrigin(0, 1);
                     player.setCollideWorldBounds(true);
+                    // 🔹 Réduire la taille du joueur de moitié
+                    player.setScale(0.5);
                 } else {
                     poiData.push({
                         x: obj.x,
@@ -102,7 +104,7 @@ window.onload = function () {
             }
         });
 
-        // ⚠️ Assurer que le joueur est visible au-dessus
+        // Assurer que le joueur est visible au-dessus
         this.children.bringToTop(player);
 
         console.log("POI trouvés :", poiData);
