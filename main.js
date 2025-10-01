@@ -55,7 +55,7 @@ window.onload = function () {
                 if (obj.name === "spawn_avezzano") {
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
                     player.setOrigin(0.5, 1);
-                    player.setScale(0.6); // 🔥 joueur petit style Pokémon
+                    player.setScale(0.35); // ✅ joueur petit style Pokémon
                     player.setCollideWorldBounds(true);
                 } else {
                     poiData.push({
@@ -251,5 +251,3 @@ window.onload = function () {
         };
     }
 };
-
-
