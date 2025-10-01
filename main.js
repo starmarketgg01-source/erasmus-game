@@ -13,12 +13,13 @@ const config = {
 };
 
 let player, cursors, joystick, interactButton;
-let map, minimap, minimapCamera;
+let map, minimapCamera;
 let lampBaseLayer, lampHighLayer;
 
 const game = new Phaser.Game(config);
 
 function preload() {
+    // --- MAP ---
     this.load.image('tiles', 'images/tileset.png');
     this.load.tilemapTiledJSON('map', 'images/map.json');
 
@@ -28,8 +29,9 @@ function preload() {
         frameHeight: 144
     });
 
-    // Mobile joystick
-    this.load.plugin('rexvirtualjoystickplugin', 
+    // --- JOYSTICK ---
+    this.load.plugin(
+        'rexvirtualjoystickplugin',
         'https://raw.githubusercontent.com/rexrainbow/phaser3-rex-notes/master/dist/rexvirtualjoystickplugin.min.js',
         true
     );
@@ -47,13 +49,14 @@ function create() {
 
     // --- PLAYER ---
     player = this.physics.add.sprite(300, 300, 'player', 1);
-    player.setScale(0.6);       // joueur réaliste
+    player.setScale(0.4);       // joueur réaliste
     player.setOrigin(0.5, 1);   // pied bien aligné
     player.setCollideWorldBounds(true);
 
     // --- COLLISIONS ---
-    ;[objLayer, lampBaseLayer].forEach(layer => {
-        if (layer && Array.isArray(layer.collideIndexes) && layer.collideIndexes.length > 0) {
+    [objLayer, lampBaseLayer].forEach(layer => {
+        if (layer) {
+            layer.setCollisionByProperty({ collides: true });
             this.physics.add.collider(player, layer);
         }
     });
@@ -89,7 +92,7 @@ function create() {
 
     // --- CAMERA ---
     this.cameras.main.startFollow(player);
-    this.cameras.main.setZoom(3);
+    this.cameras.main.setZoom(2); // zoom plus doux
 
     // --- MINIMAP ---
     minimapCamera = this.cameras.add(600, 20, 180, 180).setZoom(0.2).setName('mini');
@@ -124,7 +127,7 @@ function create() {
     }
 
     // --- DEPTH ---
-    lampHighLayer.setDepth(1000); // lampadaire haut toujours au-dessus
+    if (lampHighLayer) lampHighLayer.setDepth(1000); // lampadaire haut au-dessus
 }
 
 function update() {
@@ -166,3 +169,4 @@ function update() {
     // Depth dynamique pour bien gérer les bancs / panneaux
     player.setDepth(player.y);
 }
+
