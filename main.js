@@ -165,7 +165,7 @@ window.onload = function () {
 
     function update() {
         if (!player) return;
-        const speed = 90;
+        const speed = 70;
         player.setVelocity(0);
 
         // Mobile
