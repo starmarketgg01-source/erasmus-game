@@ -62,7 +62,7 @@ window.onload = function () {
         if (objectLayer) {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
-                    // ⚠️ Frame 0 (pas 1) pour être sûr qu’il soit visible
+                    // ⚠️ Frame 0 pour éviter un sprite invisible
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
                     player.setOrigin(0, 1);
                     player.setCollideWorldBounds(true);
@@ -102,7 +102,7 @@ window.onload = function () {
             }
         });
 
-        // ⚠️ S'assurer que le joueur est visible au-dessus
+        // ⚠️ Assurer que le joueur est visible au-dessus
         this.children.bringToTop(player);
 
         console.log("POI trouvés :", poiData);
@@ -216,12 +216,20 @@ window.onload = function () {
         // Fond assombri
         document.body.classList.add("overlay-active");
 
+        // Corriger le chemin de l'image (tolérant)
+        let imgPath = poi.image;
+        if (imgPath) {
+            if (!imgPath.startsWith("images/")) {
+                imgPath = "images/" + imgPath;
+            }
+        }
+
         interactionBox.innerHTML = `
             <div class="interaction-content">
                 <button id="closeBox">✖</button>
                 <h2>${poi.title}</h2>
                 <p>${poi.description}</p>
-                ${poi.image ? `<img src="images/${poi.image}" alt="${poi.title}">` : ""}
+                ${imgPath ? `<img src="${imgPath}" alt="${poi.title}">` : ""}
             </div>
         `;
         interactionBox.style.display = "flex";
