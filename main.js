@@ -1,5 +1,5 @@
 // ==================================
-// Erasmus Game - main.js (COMPLET)
+// Erasmus Game - main.js (COMPLET CORRIGÉ)
 // ==================================
 window.onload = function () {
   const config = {
@@ -43,14 +43,12 @@ window.onload = function () {
       frameHeight: 144
     });
 
-    // Mobile joystick plugin
-    if (isMobile) {
-      this.load.scenePlugin({
-        key: "rexvirtualjoystickplugin",
-        url: "https://cdn.jsdelivr.net/npm/phaser3-rex-plugins/dist/rexvirtualjoystickplugin.min.js",
-        sceneKey: "rexUI"
-      });
-    }
+    // ✅ Charger plugin joystick avant la scène (fix écran noir mobile)
+    this.load.scenePlugin({
+      key: "rexvirtualjoystickplugin",
+      url: "https://cdn.jsdelivr.net/npm/phaser3-rex-plugins/dist/rexvirtualjoystickplugin.min.js",
+      sceneKey: "rexUI"
+    });
   }
 
   // --------------------------------
@@ -91,10 +89,14 @@ window.onload = function () {
     // Décor avec collisions
     const decorLayer = map.createLayer("lampadaire + bancs + panneaux", tilesets, 0, 0);
     if (decorLayer) decorLayer.setCollisionByExclusion([-1]);
+
+    // ✅ Lampadaire_base → plus de collision, rendu au-dessus du joueur
     const lampBaseLayer = map.createLayer("lampadaire_base", tilesets, 0, 0);
-    if (lampBaseLayer) lampBaseLayer.setCollisionByExclusion([-1]);
+    if (lampBaseLayer) lampBaseLayer.setDepth(9998);
+
+    // Lampadaire haut (devant joueur aussi)
     const lampTopLayer = map.createLayer("lampadaire_haut", tilesets, 0, 0);
-    if (lampTopLayer) lampTopLayer.setDepth(9999); // toujours devant
+    if (lampTopLayer) lampTopLayer.setDepth(9999);
 
     // --- Spawn + POI from object layer ---
     const objLayer = map.getObjectLayer("POI");
@@ -125,7 +127,7 @@ window.onload = function () {
       }
     });
     if (decorLayer) this.physics.add.collider(player, decorLayer);
-    if (lampBaseLayer) this.physics.add.collider(player, lampBaseLayer);
+    // ❌ lampBaseLayer retiré des collisions
 
     // --- Camera ---
     this.cameras.main.startFollow(player, true, 0.12, 0.12);
