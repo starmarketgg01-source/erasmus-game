@@ -62,12 +62,11 @@ window.onload = function () {
         if (objectLayer) {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
-                    // Frame 0 pour éviter un sprite invisible
+                    // Joueur visible et réduit de moitié
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
-                    player.setOrigin(0, 1);
-                    player.setCollideWorldBounds(true);
-                    // 🔹 Réduire la taille du joueur de moitié
                     player.setScale(0.5);
+                    player.setOrigin(0.5, 1); // centrer pour le zoom
+                    player.setCollideWorldBounds(true);
                 } else {
                     poiData.push({
                         x: obj.x,
@@ -104,14 +103,14 @@ window.onload = function () {
             }
         });
 
-        // Assurer que le joueur est visible au-dessus
+        // S'assurer que le joueur est au-dessus des calques
         this.children.bringToTop(player);
 
         console.log("POI trouvés :", poiData);
 
         // === 3. Caméra suit le joueur ===
-        this.cameras.main.startFollow(player);
-        this.cameras.main.setZoom(2);
+        this.cameras.main.startFollow(player, true, 0.1, 0.1);
+        this.cameras.main.setZoom(3); // zoom plus visible avec joueur réduit
 
         // === 4. Entrées clavier ===
         cursors = this.input.keyboard.createCursorKeys();
