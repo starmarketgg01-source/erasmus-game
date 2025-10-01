@@ -62,7 +62,8 @@ window.onload = function () {
         if (objectLayer) {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
-                    player = this.physics.add.sprite(obj.x, obj.y, "player", 1);
+                    // ⚠️ Frame 0 (pas 1) pour être sûr qu’il soit visible
+                    player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
                     player.setOrigin(0, 1);
                     player.setCollideWorldBounds(true);
                 } else {
@@ -100,6 +101,9 @@ window.onload = function () {
                 this.physics.add.collider(player, layer);
             }
         });
+
+        // ⚠️ S'assurer que le joueur est visible au-dessus
+        this.children.bringToTop(player);
 
         console.log("POI trouvés :", poiData);
 
