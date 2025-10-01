@@ -26,8 +26,6 @@ window.onload = function () {
         const tileset2 = map.addTilesetImage("tileset_part2.png", "tileset_part2");
         const tileset3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
 
-        const layers = map.layers.map(l => l.name);
-
         // -------------------------------
         // 1️⃣ Spawn joueur et POI
         // -------------------------------
@@ -51,22 +49,27 @@ window.onload = function () {
         }
 
         // -------------------------------
-        // 2️⃣ Créer calques et collisions
+        // 2️⃣ Calques et collisions
         // -------------------------------
 
-        // 2a️⃣ Décor bancs + panneaux
+        // Bancs + panneaux
         const decorLayer = map.createLayer("lampadaire + bancs + panneaux", [tileset1, tileset2, tileset3], 0, 0);
         decorLayer.setCollisionByExclusion([-1]);
         this.physics.add.collider(player, decorLayer);
 
-        // 2b️⃣ Lampadaire base (collision)
+        // Lampadaire base (collision)
         const lampBaseLayer = map.createLayer("lampadaire_base", [tileset1, tileset2, tileset3], 0, 0);
         lampBaseLayer.setCollisionByExclusion([-1]);
         this.physics.add.collider(player, lampBaseLayer);
 
-        // 2c️⃣ Lampadaire haut (toujours devant joueur)
+        // Lampadaire haut (visuel)
         const lampHighLayer = map.createLayer("lampadaire_haut", [tileset1, tileset2, tileset3], 0, 0);
-        lampHighLayer.setDepth(1000);
+        lampHighLayer.forEachTile(tile => {
+            if (tile.index !== -1) {
+                // chaque tile a sa profondeur = sa position Y pour effet top-down
+                if (tile.tilemapLayer) tile.tilemapLayer.setDepth(tile.pixelY);
+            }
+        });
 
         // -------------------------------
         // 3️⃣ Caméra
@@ -108,7 +111,7 @@ window.onload = function () {
         else if (cursors.down.isDown) { player.setVelocityY(speed); player.anims.play("down", true); }
         else { player.anims.stop(); }
 
-        // Profondeur dynamique pour passer derrière objets décor sol
+        // Profondeur dynamique joueur
         player.setDepth(player.y);
 
         // -------------------------------
