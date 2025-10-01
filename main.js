@@ -16,9 +16,6 @@ window.onload = function () {
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     function preload() {
-        console.log("Chargement...");
-
-        // Charger la map et tilesets
         this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
         this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
         this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
@@ -40,22 +37,19 @@ window.onload = function () {
     }
 
     function create() {
-        console.log("Création...");
-
-        // Charger la carte
         map = this.make.tilemap({ key: "map" });
         const tileset1 = map.addTilesetImage("tileset_part1.png", "tileset_part1");
         const tileset2 = map.addTilesetImage("tileset_part2.png", "tileset_part2");
         const tileset3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
 
-        // Spawn joueur et POI
+        // Spawn joueur + POI
         const objectLayer = map.getObjectLayer("POI");
         if (objectLayer) {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
                     player.setOrigin(0.5, 1);
-                    player.setScale(0.20); // ✅ joueur petit style Pokémon
+                    player.setScale(0.20);
                     player.setCollideWorldBounds(true);
                 } else {
                     poiData.push({
@@ -68,7 +62,7 @@ window.onload = function () {
             });
         }
 
-        // Activer collisions sur certains calques
+        // Calques collisions
         const collisionLayers = ["water", "rails", "bord de map", "vegetation 1", "vegetation 2", "batiments 1", "batiments 2"];
         map.layers.forEach(layerData => {
             const name = layerData.name;
@@ -77,21 +71,18 @@ window.onload = function () {
             if (collisionLayers.includes(name)) {
                 layer.setCollisionByExclusion([-1]);
                 this.physics.add.collider(player, layer);
-                console.log("Collision activée sur :", name);
             }
         });
 
-        // Décor interactif
+        // Décors interactifs
         const decorLayer = map.createLayer("lampadaire + bancs + panneaux", [tileset1, tileset2, tileset3], 0, 0);
         decorLayer.setCollisionByExclusion([-1]);
         this.physics.add.collider(player, decorLayer);
 
-        // Lampadaires base (collision)
         const lampBaseLayer = map.createLayer("lampadaire_base", [tileset1, tileset2, tileset3], 0, 0);
         lampBaseLayer.setCollisionByExclusion([-1]);
         this.physics.add.collider(player, lampBaseLayer);
 
-        // Lampadaires hauts (devant joueur)
         const lampHighLayer = map.createLayer("lampadaire_haut", [tileset1, tileset2, tileset3], 0, 0);
         lampHighLayer.setDepth(9999);
 
@@ -100,22 +91,17 @@ window.onload = function () {
         this.cameras.main.setZoom(2.5);
 
         // Mini-map
-        const miniCamWidth = 200;
-        const miniCamHeight = 150;
-        const miniCamZoom = 0.2;
-        minimapCam = this.cameras.add(window.innerWidth - miniCamWidth - 10, 10, miniCamWidth, miniCamHeight)
-            .setZoom(miniCamZoom)
+        minimapCam = this.cameras.add(window.innerWidth - 210, 10, 200, 150)
+            .setZoom(0.2)
             .startFollow(player);
 
-        // Flèche joueur mini-map
         playerMiniArrow = this.add.triangle(
-            minimapCam.x + miniCamWidth / 2,
-            minimapCam.y + miniCamHeight / 2,
+            minimapCam.x + 100, minimapCam.y + 75,
             0, 16, 16, 16, 8, 0,
             0xff0000
         ).setScrollFactor(0).setDepth(1001);
 
-        // Clavier
+        // Contrôles clavier
         cursors = this.input.keyboard.createCursorKeys();
         interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
         this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
@@ -132,7 +118,7 @@ window.onload = function () {
         this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }), frameRate: 5, repeat: -1 });
         this.anims.create({ key: "up", frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }), frameRate: 5, repeat: -1 });
 
-        // Mobile : joystick et bouton E
+        // Mobile joystick + bouton E
         if (isMobile) {
             joystick = this.rexUI.add.joystick({
                 x: 100,
@@ -164,71 +150,86 @@ window.onload = function () {
         }
     }
 
-function update() {
-    if (!player) return;
+     // Générer une texture blanche pour la poussière
+    const graphics = this.make.graphics({ x: 0, y: 0, add: false });
+    graphics.fillStyle(0xffffff, 1);
+    graphics.fillCircle(4, 4, 4);
+    graphics.generateTexture("dust", 8, 8);
 
-    // Vérifie si shift est pressé
-    const isRunning = this.shiftKey && this.shiftKey.isDown;
-    const speed = isRunning ? 150 : 70;   // 🔥 vitesse x2
-    const frameRate = isRunning ? 10 : 5; // 🔥 animation plus rapide
+    // Ajouter un système de particules pour la poussière
+    const particles = this.add.particles("dust");
+    dustEmitter = particles.createEmitter({
+        x: 0, y: 0,
+        speed: { min: -30, max: 30 },
+        angle: { min: 240, max: 300 },
+        scale: { start: 0.3, end: 0 },
+        alpha: { start: 0.6, end: 0 },
+        lifespan: 400,
+        on: false // désactivé au début
+    });
+    dustEmitter.startFollow(player, 0, -5); // suit le joueur
+}
 
-    player.setVelocity(0);
+    function update() {
+        if (!player) return;
 
+        // Marche ou course
+        const isRunning = this.shiftKey && this.shiftKey.isDown;
+        const speed = isRunning ? 150 : 70;
+        const frameRate = isRunning ? 10 : 5;
 
-        // Mobile
+        player.setVelocity(0);
+
+        // Active poussière seulement si le joueur court ET bouge
+    if (isRunning && (cursors.left.isDown || cursors.right.isDown || cursors.up.isDown || cursors.down.isDown)) {
+        dustEmitter.on = true;
+    } else {
+        dustEmitter.on = false;
+    }
+
         if (isMobile && joystick) {
+            // Joystick mobile
             const force = joystick.force;
             const angle = joystick.angle;
             if (force > 0) {
                 const rad = Phaser.Math.DegToRad(angle);
                 player.setVelocityX(Math.cos(rad) * speed * force);
                 player.setVelocityY(Math.sin(rad) * speed * force);
-                if (angle >= -45 && angle <= 45) player.anims.play("right", true);
-                else if (angle >= 135 || angle <= -135) player.anims.play("left", true);
-                else if (angle > 45 && angle < 135) player.anims.play("down", true);
-                else player.anims.play("up", true);
-            } else player.anims.stop();
+            }
         } else {
-            // PC
+            // Clavier PC
             if (cursors.left.isDown) {
-    player.setVelocityX(-speed);
-    player.anims.play("left", true);
-    player.anims.currentAnim.frameRate = frameRate;
-}
-else if (cursors.right.isDown) {
-    player.setVelocityX(speed);
-    player.anims.play("right", true);
-    player.anims.currentAnim.frameRate = frameRate;
-}
-else if (cursors.up.isDown) {
-    player.setVelocityY(-speed);
-    player.anims.play("up", true);
-    player.anims.currentAnim.frameRate = frameRate;
-}
-else if (cursors.down.isDown) {
-    player.setVelocityY(speed);
-    player.anims.play("down", true);
-    player.anims.currentAnim.frameRate = frameRate;
-}
-else {
-    player.anims.stop();
-}
+                player.setVelocityX(-speed);
+                player.anims.play("left", true);
+                player.anims.currentAnim.frameRate = frameRate;
+            }
+            else if (cursors.right.isDown) {
+                player.setVelocityX(speed);
+                player.anims.play("right", true);
+                player.anims.currentAnim.frameRate = frameRate;
+            }
+            else if (cursors.up.isDown) {
+                player.setVelocityY(-speed);
+                player.anims.play("up", true);
+                player.anims.currentAnim.frameRate = frameRate;
+            }
+            else if (cursors.down.isDown) {
+                player.setVelocityY(speed);
+                player.anims.play("down", true);
+                player.anims.currentAnim.frameRate = frameRate;
+            }
+            else {
+                player.anims.stop();
+            }
+        }
 
         player.setDepth(player.y);
 
-        // Flèche mini-map
+        // Mini-map flèche
         playerMiniArrow.x = minimapCam.worldView.x + player.x * 0.2;
         playerMiniArrow.y = minimapCam.worldView.y + player.y * 0.2;
 
-        if (player.anims.currentAnim) {
-            const dir = player.anims.currentAnim.key;
-            if (dir === "up") playerMiniArrow.rotation = 0;
-            else if (dir === "right") playerMiniArrow.rotation = Phaser.Math.DegToRad(90);
-            else if (dir === "down") playerMiniArrow.rotation = Phaser.Math.DegToRad(180);
-            else if (dir === "left") playerMiniArrow.rotation = Phaser.Math.DegToRad(-90);
-        }
-
-        // POI
+        // Interaction POI
         currentPOI = null;
         for (let poi of poiData) {
             const dist = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
