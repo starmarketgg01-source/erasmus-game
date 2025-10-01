@@ -1,47 +1,79 @@
-body {
-    margin: 0;
-    padding: 0;
+/* Fond sombre quand une interaction est ouverte */
+body.overlay-active {
     overflow: hidden;
-    background: black;
+    background: rgba(0, 0, 0, 0.6);
 }
 
-#game {
-    width: 100%;
-    height: 100%;
-}
-
-.overlay-active {
-    background: rgba(0, 0, 0, 0.8);
-}
-
+/* Boîte d’interaction */
 #interaction-box {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.85);
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 10000;
 }
 
-.interaction-content {
+/* Contenu interaction */
+#interaction-box .interaction-content {
     background: #fff;
-    padding: 20px;
+    color: #222;
     border-radius: 10px;
-    width: 400px;
-    max-width: 90%;
+    padding: 20px;
+    width: 90%;
+    max-width: 500px;
     text-align: center;
+    position: relative;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
-.interaction-content img {
-    width: 100%;
+/* Bouton de fermeture */
+#interaction-box .interaction-content #closeBox {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #ff4d4d;
+    border: none;
+    color: white;
+    font-size: 20px;
+    padding: 5px 10px;
     border-radius: 5px;
-    margin-top: 10px;
+    cursor: pointer;
+}
+#interaction-box .interaction-content #closeBox:hover {
+    background: #d93636;
 }
 
+/* Image dans la boîte */
+#interaction-box .interaction-content img {
+    max-width: 100%;
+    height: auto;
+    margin-top: 10px;
+    border-radius: 5px;
+}
+
+/* Texte */
+#interaction-box .interaction-content h2 {
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+#interaction-box .interaction-content p {
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+/* Bouton E mobile */
 #interactBtn {
-    font-family: Arial, sans-serif;
+    display: none; /* caché par défaut sur PC */
+}
+
+/* Visible uniquement sur mobile */
+@media (max-width: 768px) {
+    #interactBtn {
+        display: flex;
+    }
 }
