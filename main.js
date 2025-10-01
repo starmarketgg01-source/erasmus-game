@@ -57,38 +57,11 @@ window.onload = function () {
         const layers = map.layers.map(l => l.name);
         console.log("Calques disponibles :", layers);
 
-        // Créer toutes les couches visibles
-        layers.forEach(layerName => {
-            const layer = map.createLayer(layerName, [tileset1, tileset2, tileset3], 0, 0);
-
-            const collisionLayers = [
-                "water",
-                "lampadaire + bancs + panneaux",
-                "rails",
-                "piscine",
-                "bord de map",
-                "vegetation 1",
-                "batiments 1",
-                "batiments 2"
-            ];
-
-            if (collisionLayers.includes(layerName)) {
-                layer.setCollisionByExclusion([-1]);
-                console.log("Collision activée sur :", layerName);
-
-                // Activer collisions joueur / décor
-                if (player) {
-                    this.physics.add.collider(player, layer);
-                }
-            }
-        });
-
-        // Charger le calque d'objets POI
+        // === 1. Créer le joueur en premier (spawn) ===
         const objectLayer = map.getObjectLayer("POI");
         if (objectLayer) {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
-                    // Spawn joueur
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 1);
                     player.setOrigin(0, 1);
                     player.setCollideWorldBounds(true);
@@ -104,22 +77,47 @@ window.onload = function () {
             });
         }
 
+        // === 2. Créer couches et collisions ensuite ===
+        const collisionLayers = [
+            "water",
+            "lampadaire + bancs + panneaux",
+            "rails",
+            "piscine",
+            "bord de map",
+            "vegetation 1",
+            "vegetation 2",
+            "batiments 1",
+            "batiments 2"
+        ];
+
+        layers.forEach(layerName => {
+            const layer = map.createLayer(layerName, [tileset1, tileset2, tileset3], 0, 0);
+
+            if (collisionLayers.includes(layerName)) {
+                layer.setCollisionByExclusion([-1]);
+                console.log("Collision activée sur :", layerName);
+
+                this.physics.add.collider(player, layer);
+            }
+        });
+
         console.log("POI trouvés :", poiData);
 
-        // Caméra suit le joueur
+        // === 3. Caméra suit le joueur ===
         this.cameras.main.startFollow(player);
         this.cameras.main.setZoom(2);
 
+        // === 4. Entrées clavier ===
         cursors = this.input.keyboard.createCursorKeys();
         interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-        // Interaction box (DOM)
+        // === 5. Interaction box (DOM) ===
         interactionBox = document.createElement("div");
         interactionBox.id = "interaction-box";
         interactionBox.style.display = "none";
         document.body.appendChild(interactionBox);
 
-        // === Animations du joueur ===
+        // === 6. Animations du joueur ===
         this.anims.create({
             key: "down",
             frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }),
