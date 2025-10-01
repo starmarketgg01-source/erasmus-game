@@ -12,7 +12,7 @@ window.onload = function () {
 
     let player, cursors, map, poiData = [], interactionKey, currentPOI = null, interactionBox;
     let joystick, interactBtn;
-    let minimapCam;
+    let minimapCam, playerMiniDot;
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     function preload() {
@@ -21,9 +21,10 @@ window.onload = function () {
         this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
         this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
+        // Sprite du joueur correctement découpé (433x577 px, 12 frames, 3 cols x 4 rows)
         this.load.spritesheet("player", "images/characters/player.png", {
             frameWidth: 144,
-            frameHeight: 144
+            frameHeight: 192
         });
 
         if (isMobile) {
@@ -103,21 +104,29 @@ window.onload = function () {
         this.cameras.main.setZoom(camZoom);
 
         // -------------------------------
-        // Mini-map en haut à droite
+        // Mini-map en haut à droite avec contours
         // -------------------------------
         const miniCamWidth = 200;
         const miniCamHeight = 150;
         const miniCamZoom = 0.2;
+
         minimapCam = this.cameras.add(window.innerWidth - miniCamWidth - 10, 10, miniCamWidth, miniCamHeight)
             .setZoom(miniCamZoom)
-            .setName('minimap')
-            .setRoundPixels(true)
             .startFollow(player);
 
-        // Optionnel : bordure mini-map
-        const graphics = this.add.graphics();
-        graphics.lineStyle(2, 0xffffff, 1);
-        graphics.strokeRect(minimapCam.x, minimapCam.y, miniCamWidth, miniCamHeight);
+        lampHighLayer.setVisible(false, minimapCam);
+
+        const miniMapBg = this.add.graphics();
+        miniMapBg.fillStyle(0x000000, 0.3);
+        miniMapBg.fillRoundedRect(minimapCam.x - 5, minimapCam.y - 5, miniCamWidth + 10, miniCamHeight + 10, 8);
+        miniMapBg.lineStyle(2, 0xffffff, 1);
+        miniMapBg.strokeRoundedRect(minimapCam.x - 5, minimapCam.y - 5, miniCamWidth + 10, miniCamHeight + 10, 8);
+        miniMapBg.setScrollFactor(0);
+        miniMapBg.setDepth(1000);
+
+        playerMiniDot = this.add.circle(minimapCam.x + miniCamWidth / 2, minimapCam.y + miniCamHeight / 2, 4, 0xff0000);
+        playerMiniDot.setScrollFactor(0);
+        playerMiniDot.setDepth(1001);
 
         // -------------------------------
         // Clavier PC
@@ -207,6 +216,10 @@ window.onload = function () {
         }
 
         player.setDepth(player.y);
+
+        // Mini-map : mettre à jour le point joueur
+        playerMiniDot.x = minimapCam.worldView.x + player.x * 0.2;
+        playerMiniDot.y = minimapCam.worldView.y + player.y * 0.2;
 
         currentPOI = null;
         for (let poi of poiData) {
