@@ -17,7 +17,12 @@ window.onload = function () {
         this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
         this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
         this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
-        this.load.spritesheet("player", "images/characters/player.png", { frameWidth: 32, frameHeight: 32 });
+
+        // Spritesheet du joueur 433x577, 3 colonnes x 4 lignes → frame 144x144
+        this.load.spritesheet("player", "images/characters/player.png", {
+            frameWidth: 144,
+            frameHeight: 144
+        });
     }
 
     function create() {
@@ -34,8 +39,8 @@ window.onload = function () {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
-                    player.setScale(0.5);
-                    player.setOrigin(0.5, 1);
+                    player.setScale(0.5); // ajuste la taille sur la map
+                    player.setOrigin(0.5, 1); // pieds du joueur à la base
                     player.setCollideWorldBounds(true);
                 } else {
                     poiData.push({
@@ -49,7 +54,7 @@ window.onload = function () {
         }
 
         // -------------------------------
-        // 2️⃣ Créer tous les calques
+        // 2️⃣ Créer tous les calques visibles
         // -------------------------------
         map.layers.forEach(layerData => {
             const name = layerData.name;
