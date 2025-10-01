@@ -11,6 +11,9 @@ window.onload = function () {
     const game = new Phaser.Game(config);
 
     let player, cursors, map, poiData = [], interactionKey, currentPOI = null, interactionBox;
+    let joystick, interactBtn;
+    let minimapCam;
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     function preload() {
         this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
@@ -18,11 +21,18 @@ window.onload = function () {
         this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
         this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
-        // Spritesheet du joueur 433x577, 3 colonnes x 4 lignes → frame 144x144
         this.load.spritesheet("player", "images/characters/player.png", {
             frameWidth: 144,
             frameHeight: 144
         });
+
+        if (isMobile) {
+            this.load.scenePlugin({
+                key: 'rexvirtualjoystickplugin',
+                url: 'https://cdn.jsdelivr.net/npm/phaser3-rex-plugins/dist/rexvirtualjoystickplugin.min.js',
+                sceneKey: 'rexUI'
+            });
+        }
     }
 
     function create() {
@@ -31,16 +41,19 @@ window.onload = function () {
         const tileset2 = map.addTilesetImage("tileset_part2.png", "tileset_part2");
         const tileset3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
 
+        let scaleFactor = window.innerHeight / 1080;
+        scaleFactor = Phaser.Math.Clamp(scaleFactor, 0.2, 0.35);
+
         // -------------------------------
-        // 1️⃣ Spawn joueur et POI
+        // Spawn joueur et POI
         // -------------------------------
         const objectLayer = map.getObjectLayer("POI");
         if (objectLayer) {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
-                    player.setScale(0.5); // ajuste la taille sur la map
-                    player.setOrigin(0.5, 1); // pieds du joueur à la base
+                    player.setScale(scaleFactor);
+                    player.setOrigin(0.5, 1);
                     player.setCollideWorldBounds(true);
                 } else {
                     poiData.push({
@@ -54,17 +67,12 @@ window.onload = function () {
         }
 
         // -------------------------------
-        // 2️⃣ Créer tous les calques visibles
+        // Calques visibles et collisions
         // -------------------------------
         map.layers.forEach(layerData => {
             const name = layerData.name;
-
-            // Skip les calques déjà gérés
             if (["lampadaire + bancs + panneaux", "lampadaire_base", "lampadaire_haut"].includes(name)) return;
-
             const layer = map.createLayer(name, [tileset1, tileset2, tileset3], 0, 0);
-
-            // Collisions pour certains calques
             const collisionLayers = ["water", "rails", "bord de map", "vegetation 1", "vegetation 2", "batiments 1", "batiments 2"];
             if (collisionLayers.includes(name)) {
                 layer.setCollisionByExclusion([-1]);
@@ -72,41 +80,53 @@ window.onload = function () {
             }
         });
 
-        // -------------------------------
-        // 3️⃣ Bancs + panneaux
-        // -------------------------------
+        // Bancs + panneaux
         const decorLayer = map.createLayer("lampadaire + bancs + panneaux", [tileset1, tileset2, tileset3], 0, 0);
         decorLayer.setCollisionByExclusion([-1]);
         this.physics.add.collider(player, decorLayer);
 
-        // -------------------------------
-        // 4️⃣ Lampadaires
-        // -------------------------------
+        // Lampadaires
         const lampBaseLayer = map.createLayer("lampadaire_base", [tileset1, tileset2, tileset3], 0, 0);
         lampBaseLayer.setCollisionByExclusion([-1]);
         this.physics.add.collider(player, lampBaseLayer);
 
         const lampHighLayer = map.createLayer("lampadaire_haut", [tileset1, tileset2, tileset3], 0, 0);
         lampHighLayer.forEachTile(tile => {
-            if (tile.index !== -1 && tile.tilemapLayer) {
-                tile.tilemapLayer.setDepth(tile.pixelY);
-            }
+            if (tile.index !== -1 && tile.tilemapLayer) tile.tilemapLayer.setDepth(tile.pixelY);
         });
 
         // -------------------------------
-        // 5️⃣ Caméra
+        // Caméra principale
         // -------------------------------
+        const camZoom = Phaser.Math.Clamp(scaleFactor * 8, 2.5, 4);
         this.cameras.main.startFollow(player, true, 0.1, 0.1);
-        this.cameras.main.setZoom(3);
+        this.cameras.main.setZoom(camZoom);
 
         // -------------------------------
-        // 6️⃣ Clavier
+        // Mini-map en haut à droite
+        // -------------------------------
+        const miniCamWidth = 200;
+        const miniCamHeight = 150;
+        const miniCamZoom = 0.2;
+        minimapCam = this.cameras.add(window.innerWidth - miniCamWidth - 10, 10, miniCamWidth, miniCamHeight)
+            .setZoom(miniCamZoom)
+            .setName('minimap')
+            .setRoundPixels(true)
+            .startFollow(player);
+
+        // Optionnel : bordure mini-map
+        const graphics = this.add.graphics();
+        graphics.lineStyle(2, 0xffffff, 1);
+        graphics.strokeRect(minimapCam.x, minimapCam.y, miniCamWidth, miniCamHeight);
+
+        // -------------------------------
+        // Clavier PC
         // -------------------------------
         cursors = this.input.keyboard.createCursorKeys();
         interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
         // -------------------------------
-        // 7️⃣ Interaction box (DOM)
+        // Interaction box DOM
         // -------------------------------
         interactionBox = document.createElement("div");
         interactionBox.id = "interaction-box";
@@ -114,34 +134,88 @@ window.onload = function () {
         document.body.appendChild(interactionBox);
 
         // -------------------------------
-        // 8️⃣ Animations joueur
+        // Animations joueur
         // -------------------------------
         this.anims.create({ key: "down", frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }), frameRate: 10, repeat: -1 });
         this.anims.create({ key: "left", frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }), frameRate: 10, repeat: -1 });
         this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }), frameRate: 10, repeat: -1 });
         this.anims.create({ key: "up", frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }), frameRate: 10, repeat: -1 });
+
+        // -------------------------------
+        // Mobile : joystick + bouton interaction
+        // -------------------------------
+        if (isMobile) {
+            joystick = this.rexUI.add.joystick({
+                x: 100,
+                y: window.innerHeight - 100,
+                radius: 50,
+                base: this.add.circle(0, 0, 50, 0x888888, 0.5),
+                thumb: this.add.circle(0, 0, 25, 0xcccccc, 0.8),
+            }).on('update', () => {});
+
+            interactBtn = document.createElement("div");
+            interactBtn.id = "interactBtn";
+            interactBtn.innerText = "E";
+            interactBtn.style.position = "absolute";
+            interactBtn.style.bottom = "100px";
+            interactBtn.style.right = "20px";
+            interactBtn.style.width = "60px";
+            interactBtn.style.height = "60px";
+            interactBtn.style.background = "rgba(0,0,0,0.6)";
+            interactBtn.style.color = "#fff";
+            interactBtn.style.fontSize = "32px";
+            interactBtn.style.borderRadius = "50%";
+            interactBtn.style.display = "flex";
+            interactBtn.style.alignItems = "center";
+            interactBtn.style.justifyContent = "center";
+            interactBtn.style.zIndex = "999";
+            document.body.appendChild(interactBtn);
+
+            interactBtn.addEventListener("click", () => {
+                if (currentPOI) showInteraction(currentPOI);
+            });
+        }
     }
 
     function update() {
         if (!player) return;
+
         const speed = 150;
         player.setVelocity(0);
 
-        if (cursors.left.isDown) { player.setVelocityX(-speed); player.anims.play("left", true); }
-        else if (cursors.right.isDown) { player.setVelocityX(speed); player.anims.play("right", true); }
-        else if (cursors.up.isDown) { player.setVelocityY(-speed); player.anims.play("up", true); }
-        else if (cursors.down.isDown) { player.setVelocityY(speed); player.anims.play("down", true); }
-        else { player.anims.stop(); }
+        // Mobile joystick
+        if (isMobile && joystick) {
+            const force = joystick.force;
+            const angle = joystick.angle;
+            if (force > 0) {
+                const rad = Phaser.Math.DegToRad(angle);
+                player.setVelocityX(Math.cos(rad) * speed * force);
+                player.setVelocityY(Math.sin(rad) * speed * force);
+
+                if (angle >= -45 && angle <= 45) player.anims.play("right", true);
+                else if (angle >= 135 || angle <= -135) player.anims.play("left", true);
+                else if (angle > 45 && angle < 135) player.anims.play("down", true);
+                else player.anims.play("up", true);
+            } else player.anims.stop();
+        } else {
+            // Clavier PC
+            if (cursors.left.isDown) { player.setVelocityX(-speed); player.anims.play("left", true); }
+            else if (cursors.right.isDown) { player.setVelocityX(speed); player.anims.play("right", true); }
+            else if (cursors.up.isDown) { player.setVelocityY(-speed); player.anims.play("up", true); }
+            else if (cursors.down.isDown) { player.setVelocityY(speed); player.anims.play("down", true); }
+            else { player.anims.stop(); }
+        }
 
         player.setDepth(player.y);
 
         currentPOI = null;
         for (let poi of poiData) {
             const dist = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
-            if (dist < 40) { currentPOI = poi; showPressE(); break; }
+            if (dist < 40) { currentPOI = poi; if (!isMobile) showPressE(); break; }
         }
-        if (!currentPOI) hidePressE();
-        if (currentPOI && Phaser.Input.Keyboard.JustDown(interactionKey)) showInteraction(currentPOI);
+        if (!currentPOI && !isMobile) hidePressE();
+
+        if (!isMobile && currentPOI && Phaser.Input.Keyboard.JustDown(interactionKey)) showInteraction(currentPOI);
     }
 
     function showPressE() {
