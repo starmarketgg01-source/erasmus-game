@@ -28,26 +28,16 @@ window.onload = function () {
     let interactionBox;
 
     function preload() {
-        console.log("Chargement...");
-
-        // Charger la carte
+        console.log("Chargement des assets...");
         this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
-
-        // Charger les tilesets
         this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
         this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
         this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
-
-        // Charger le spritesheet du joueur
-        this.load.spritesheet("player", "images/characters/player.png", {
-            frameWidth: 32,
-            frameHeight: 32
-        });
+        this.load.spritesheet("player", "images/characters/player.png", { frameWidth: 32, frameHeight: 32 });
     }
 
     function create() {
-        console.log("Création...");
-
+        console.log("Création de la scène...");
         map = this.make.tilemap({ key: "map" });
 
         const tileset1 = map.addTilesetImage("tileset_part1.png", "tileset_part1");
@@ -57,15 +47,14 @@ window.onload = function () {
         const layers = map.layers.map(l => l.name);
         console.log("Calques disponibles :", layers);
 
-        // === 1. Créer le joueur en premier (spawn) ===
+        // 1️⃣ Créer joueur et POI
         const objectLayer = map.getObjectLayer("POI");
         if (objectLayer) {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
-                    // Joueur visible et réduit de moitié
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
                     player.setScale(0.5);
-                    player.setOrigin(0.5, 1); // centrer pour le zoom
+                    player.setOrigin(0.5, 1);
                     player.setCollideWorldBounds(true);
                 } else {
                     poiData.push({
@@ -79,17 +68,13 @@ window.onload = function () {
             });
         }
 
-        // === 2. Créer couches et collisions ensuite ===
+        console.log("POI trouvés :", poiData);
+
+        // 2️⃣ Créer calques et collisions
         const collisionLayers = [
-            "water",
-            "lampadaire + bancs + panneaux",
-            "rails",
-            "piscine",
-            "bord de map",
-            "vegetation 1",
-            "vegetation 2",
-            "batiments 1",
-            "batiments 2"
+            "water", "rails", "piscine", "bord de map",
+            "vegetation 1", "vegetation 2", "batiments 1", "batiments 2",
+            "lampadaire_base" // collisions physiques pour lampadaires
         ];
 
         layers.forEach(layerName => {
@@ -97,98 +82,60 @@ window.onload = function () {
 
             if (collisionLayers.includes(layerName)) {
                 layer.setCollisionByExclusion([-1]);
-                console.log("Collision activée sur :", layerName);
-
                 this.physics.add.collider(player, layer);
+                console.log("Collision activée sur :", layerName);
+            }
+
+            // Lampadaire visuel devant le joueur
+            if (layerName === "lampadaire_front") {
+                layer.setDepth(1000);
             }
         });
 
-        // S'assurer que le joueur est au-dessus des calques
-        this.children.bringToTop(player);
-
-        console.log("POI trouvés :", poiData);
-
-        // === 3. Caméra suit le joueur ===
+        // 3️⃣ Caméra
         this.cameras.main.startFollow(player, true, 0.1, 0.1);
-        this.cameras.main.setZoom(3); // zoom plus visible avec joueur réduit
+        this.cameras.main.setZoom(3);
 
-        // === 4. Entrées clavier ===
+        // 4️⃣ Clavier
         cursors = this.input.keyboard.createCursorKeys();
         interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-        // === 5. Interaction box (DOM) ===
+        // 5️⃣ Interaction DOM
         interactionBox = document.createElement("div");
         interactionBox.id = "interaction-box";
         interactionBox.style.display = "none";
         document.body.appendChild(interactionBox);
 
-        // === 6. Animations du joueur ===
-        this.anims.create({
-            key: "down",
-            frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }),
-            frameRate: 10,
-            repeat: -1
-        });
-        this.anims.create({
-            key: "left",
-            frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }),
-            frameRate: 10,
-            repeat: -1
-        });
-        this.anims.create({
-            key: "right",
-            frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }),
-            frameRate: 10,
-            repeat: -1
-        });
-        this.anims.create({
-            key: "up",
-            frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }),
-            frameRate: 10,
-            repeat: -1
-        });
+        // 6️⃣ Animations
+        this.anims.create({ key: "down", frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }), frameRate: 10, repeat: -1 });
+        this.anims.create({ key: "left", frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }), frameRate: 10, repeat: -1 });
+        this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }), frameRate: 10, repeat: -1 });
+        this.anims.create({ key: "up", frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }), frameRate: 10, repeat: -1 });
     }
 
     function update() {
         if (!player) return;
 
-        let speed = 150;
+        const speed = 150;
         player.setVelocity(0);
 
-        if (cursors.left.isDown) {
-            player.setVelocityX(-speed);
-            player.anims.play("left", true);
-        } else if (cursors.right.isDown) {
-            player.setVelocityX(speed);
-            player.anims.play("right", true);
-        } else if (cursors.up.isDown) {
-            player.setVelocityY(-speed);
-            player.anims.play("up", true);
-        } else if (cursors.down.isDown) {
-            player.setVelocityY(speed);
-            player.anims.play("down", true);
-        } else {
-            player.setVelocity(0);
-            player.anims.stop();
-        }
+        if (cursors.left.isDown) { player.setVelocityX(-speed); player.anims.play("left", true); }
+        else if (cursors.right.isDown) { player.setVelocityX(speed); player.anims.play("right", true); }
+        else if (cursors.up.isDown) { player.setVelocityY(-speed); player.anims.play("up", true); }
+        else if (cursors.down.isDown) { player.setVelocityY(speed); player.anims.play("down", true); }
+        else { player.anims.stop(); }
 
-        // Vérifier proximité avec un POI
+        // Profondeur dynamique
+        player.setDepth(player.y);
+
+        // Détection POI
         currentPOI = null;
         for (let poi of poiData) {
             const dist = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
-            if (dist < 40) {
-                currentPOI = poi;
-                showPressE();
-                break;
-            }
+            if (dist < 40) { currentPOI = poi; showPressE(); break; }
         }
-
         if (!currentPOI) hidePressE();
-
-        // Ouvrir interaction
-        if (currentPOI && Phaser.Input.Keyboard.JustDown(interactionKey)) {
-            showInteraction(currentPOI);
-        }
+        if (currentPOI && Phaser.Input.Keyboard.JustDown(interactionKey)) showInteraction(currentPOI);
     }
 
     function showPressE() {
@@ -214,16 +161,10 @@ window.onload = function () {
     }
 
     function showInteraction(poi) {
-        // Fond assombri
         document.body.classList.add("overlay-active");
 
-        // Corriger le chemin de l'image (tolérant)
         let imgPath = poi.image;
-        if (imgPath) {
-            if (!imgPath.startsWith("images/")) {
-                imgPath = "images/" + imgPath;
-            }
-        }
+        if (imgPath && !imgPath.startsWith("images/")) imgPath = "images/" + imgPath;
 
         interactionBox.innerHTML = `
             <div class="interaction-content">
