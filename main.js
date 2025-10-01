@@ -49,43 +49,59 @@ window.onload = function () {
         }
 
         // -------------------------------
-        // 2️⃣ Calques et collisions
+        // 2️⃣ Créer tous les calques
         // -------------------------------
+        map.layers.forEach(layerData => {
+            const name = layerData.name;
 
-        // 2a️⃣ Bancs + panneaux
+            // Skip les calques déjà gérés
+            if (["lampadaire + bancs + panneaux", "lampadaire_base", "lampadaire_haut"].includes(name)) return;
+
+            const layer = map.createLayer(name, [tileset1, tileset2, tileset3], 0, 0);
+
+            // Collisions pour certains calques
+            const collisionLayers = ["water", "rails", "bord de map", "vegetation 1", "vegetation 2", "batiments 1", "batiments 2"];
+            if (collisionLayers.includes(name)) {
+                layer.setCollisionByExclusion([-1]);
+                this.physics.add.collider(player, layer);
+            }
+        });
+
+        // -------------------------------
+        // 3️⃣ Bancs + panneaux
+        // -------------------------------
         const decorLayer = map.createLayer("lampadaire + bancs + panneaux", [tileset1, tileset2, tileset3], 0, 0);
         decorLayer.setCollisionByExclusion([-1]);
         this.physics.add.collider(player, decorLayer);
 
-        // 2b️⃣ Lampadaire base (collision)
+        // -------------------------------
+        // 4️⃣ Lampadaires
+        // -------------------------------
         const lampBaseLayer = map.createLayer("lampadaire_base", [tileset1, tileset2, tileset3], 0, 0);
         lampBaseLayer.setCollisionByExclusion([-1]);
         this.physics.add.collider(player, lampBaseLayer);
 
-        // 2c️⃣ Lampadaire haut (visuel)
         const lampHighLayer = map.createLayer("lampadaire_haut", [tileset1, tileset2, tileset3], 0, 0);
-        // On donne une profondeur dynamique selon y pour effet top-down réaliste
         lampHighLayer.forEachTile(tile => {
             if (tile.index !== -1 && tile.tilemapLayer) {
-                // Chaque tile a sa profondeur = sa position Y
                 tile.tilemapLayer.setDepth(tile.pixelY);
             }
         });
 
         // -------------------------------
-        // 3️⃣ Caméra
+        // 5️⃣ Caméra
         // -------------------------------
         this.cameras.main.startFollow(player, true, 0.1, 0.1);
         this.cameras.main.setZoom(3);
 
         // -------------------------------
-        // 4️⃣ Clavier
+        // 6️⃣ Clavier
         // -------------------------------
         cursors = this.input.keyboard.createCursorKeys();
         interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
         // -------------------------------
-        // 5️⃣ Interaction box (DOM)
+        // 7️⃣ Interaction box (DOM)
         // -------------------------------
         interactionBox = document.createElement("div");
         interactionBox.id = "interaction-box";
@@ -93,7 +109,7 @@ window.onload = function () {
         document.body.appendChild(interactionBox);
 
         // -------------------------------
-        // 6️⃣ Animations joueur
+        // 8️⃣ Animations joueur
         // -------------------------------
         this.anims.create({ key: "down", frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }), frameRate: 10, repeat: -1 });
         this.anims.create({ key: "left", frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }), frameRate: 10, repeat: -1 });
@@ -112,12 +128,8 @@ window.onload = function () {
         else if (cursors.down.isDown) { player.setVelocityY(speed); player.anims.play("down", true); }
         else { player.anims.stop(); }
 
-        // Profondeur dynamique joueur
         player.setDepth(player.y);
 
-        // -------------------------------
-        // Détection POI
-        // -------------------------------
         currentPOI = null;
         for (let poi of poiData) {
             const dist = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
@@ -164,4 +176,3 @@ window.onload = function () {
         };
     }
 };
-
