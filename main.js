@@ -28,7 +28,7 @@ window.onload = function () {
     let interactionBox;
 
     function preload() {
-        console.log("Chargement…");
+        console.log("Chargement...");
 
         // Charger la carte
         this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
@@ -38,7 +38,7 @@ window.onload = function () {
         this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
         this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
-        // Spritesheet du joueur
+        // Charger le sprite du joueur
         this.load.spritesheet("player", "images/characters/player.png", {
             frameWidth: 32,
             frameHeight: 32
@@ -46,7 +46,7 @@ window.onload = function () {
     }
 
     function create() {
-        console.log("Création…");
+        console.log("Création...");
 
         map = this.make.tilemap({ key: "map" });
 
@@ -76,19 +76,19 @@ window.onload = function () {
             if (collisionLayers.includes(layerName)) {
                 layer.setCollisionByExclusion([-1]);
                 console.log("Collision activée sur :", layerName);
+                this.physics.add.collider(player, layer);
             }
         });
 
-        // Charger le calque d’objets POI
+        // Charger le calque d'objets POI
         const objectLayer = map.getObjectLayer("POI");
         if (objectLayer) {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
-                    // Spawn du joueur
+                    // Position du joueur
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 1);
-                    player.setOrigin(0.5, 0.5);
+                    player.setOrigin(0, 1);
                     player.setCollideWorldBounds(true);
-                    player.setScale(1); // taille correcte du sprite
                 } else {
                     poiData.push({
                         x: obj.x,
@@ -103,35 +103,35 @@ window.onload = function () {
 
         console.log("POI trouvés :", poiData);
 
-        // Animations du joueur
+        // Définir les animations du joueur
         this.anims.create({
             key: "down",
             frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }),
-            frameRate: 8,
+            frameRate: 10,
             repeat: -1
         });
         this.anims.create({
             key: "left",
             frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }),
-            frameRate: 8,
+            frameRate: 10,
             repeat: -1
         });
         this.anims.create({
             key: "right",
             frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }),
-            frameRate: 8,
+            frameRate: 10,
             repeat: -1
         });
         this.anims.create({
             key: "up",
             frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }),
-            frameRate: 8,
+            frameRate: 10,
             repeat: -1
         });
 
         // Caméra suit le joueur
         this.cameras.main.startFollow(player);
-        this.cameras.main.setZoom(1.2); // zoom équilibré
+        this.cameras.main.setZoom(2);
 
         cursors = this.input.keyboard.createCursorKeys();
         interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
