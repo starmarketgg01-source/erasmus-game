@@ -1,5 +1,5 @@
 // ==================================
-// Erasmus Game - main.js (COMPLET)
+// Erasmus Game - main.js (COMPLET + FIX MOBILE)
 // ==================================
 window.onload = function () {
   const config = {
@@ -8,17 +8,17 @@ window.onload = function () {
     height: window.innerHeight,
     parent: "game",
     physics: { default: "arcade", arcade: { debug: false } },
-    scene: { preload, create, update }
+    scene: { preload, create, update },
     plugins: {
-    scene: [
-      {
-        key: 'rexVirtualJoystick',
-        plugin: rexvirtualjoystickplugin,
-        mapping: 'rexUI'
-       }
-     ]
-   }
-};
+      scene: [
+        {
+          key: 'rexVirtualJoystick',
+          plugin: window.rexvirtualjoystickplugin,
+          mapping: 'rexUI'
+        }
+      ]
+    }
+  };
 
   const game = new Phaser.Game(config);
 
@@ -51,15 +51,6 @@ window.onload = function () {
       frameWidth: 144,
       frameHeight: 144
     });
-
-    // Mobile joystick plugin
-    if (isMobile) {
-      this.load.scenePlugin({
-        key: "rexvirtualjoystickplugin",
-        url: "https://cdn.jsdelivr.net/npm/phaser3-rex-plugins/dist/rexvirtualjoystickplugin.min.js",
-        sceneKey: "rexUI"
-      });
-    }
   }
 
   // --------------------------------
@@ -75,7 +66,7 @@ window.onload = function () {
     const ts3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
     const tilesets = [ts1, ts2, ts3];
 
-    // --- Layers creation (without player colliders yet) ---
+    // --- Layers creation ---
     const collisionLayersNames = [
       "water",
       "rails",
@@ -86,7 +77,7 @@ window.onload = function () {
       "batiments 2"
     ];
 
-    const createdLayers = {}; // store created layers by name
+    const createdLayers = {};
     map.layers.forEach(ld => {
       const name = ld.name;
       if (["lampadaire + bancs + panneaux", "lampadaire_base", "lampadaire_haut"].includes(name)) return;
@@ -97,19 +88,17 @@ window.onload = function () {
       }
     });
 
-    // Décor avec collisions
+    // Décor interactif
     const decorLayer = map.createLayer("lampadaire + bancs + panneaux", tilesets, 0, 0);
     if (decorLayer) decorLayer.setCollisionByExclusion([-1]);
 
-    // Lampadaire_base → ❌ on enlève les collisions pour laisser passer derrière
+    // Lampadaires base (⚠️ plus de collision, le joueur passe derrière)
     const lampBaseLayer = map.createLayer("lampadaire_base", tilesets, 0, 0);
-    if (lampBaseLayer) {
-      lampBaseLayer.setDepth(999); // affiché devant joueur si besoin
-    }
+    if (lampBaseLayer) lampBaseLayer.setDepth(5000);
 
-    // Lampadaire haut (devant joueur)
+    // Lampadaires hauts (devant joueur)
     const lampTopLayer = map.createLayer("lampadaire_haut", tilesets, 0, 0);
-    if (lampTopLayer) lampTopLayer.setDepth(9999); // toujours devant
+    if (lampTopLayer) lampTopLayer.setDepth(9999);
 
     // --- Spawn + POI from object layer ---
     const objLayer = map.getObjectLayer("POI");
@@ -117,8 +106,8 @@ window.onload = function () {
       objLayer.objects.forEach(obj => {
         if (obj.name === "spawn_avezzano") {
           player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
-          player.setOrigin(0.5, 1);   // pieds au sol
-          player.setScale(0.20);      // petit style Pokémon
+          player.setOrigin(0.5, 1);
+          player.setScale(0.20);
           player.setCollideWorldBounds(true);
         } else {
           poiData.push({
@@ -132,7 +121,7 @@ window.onload = function () {
       });
     }
 
-    // --- Add collisions with player now ---
+    // --- Add collisions with player ---
     Object.entries(createdLayers).forEach(([name, layer]) => {
       if (collisionLayersNames.includes(name)) {
         this.physics.add.collider(player, layer);
@@ -169,19 +158,19 @@ window.onload = function () {
     shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-    // --- Interaction modal (DOM) ---
+    // --- Interaction modal ---
     interactionBox = document.createElement("div");
     interactionBox.id = "interaction-box";
     interactionBox.style.display = "none";
     document.body.appendChild(interactionBox);
 
-    // --- Animations (walk base = 5 FPS; boost via timeScale when running) ---
+    // --- Animations ---
     this.anims.create({ key: "down",  frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }),  frameRate: 5, repeat: -1 });
     this.anims.create({ key: "left",  frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }),  frameRate: 5, repeat: -1 });
     this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }),  frameRate: 5, repeat: -1 });
     this.anims.create({ key: "up",    frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }), frameRate: 5, repeat: -1 });
 
-    // --- Dust particles (only when running) ---
+    // --- Dust particles ---
     const g = this.make.graphics({ x: 0, y: 0, add: false });
     g.fillStyle(0xffffff, 1).fillCircle(4, 4, 4);
     g.generateTexture("dust", 8, 8);
@@ -197,8 +186,8 @@ window.onload = function () {
     });
     dustEmitter.startFollow(player, 0, -6);
 
-    // --- Mobile UI: joystick + E button ---
-    if (isMobile) {
+    // --- Mobile UI ---
+    if (isMobile && this.rexUI) {
       joystick = this.rexUI.add.joystick({
         x: 100,
         y: window.innerHeight - 100,
@@ -239,15 +228,13 @@ window.onload = function () {
   function update() {
     if (!player) return;
 
-    // Run (Shift) → speed x2, animation faster via timeScale
     const isRunning = shiftKey && shiftKey.isDown;
     const speed = isRunning ? 150 : 70;
 
-    // Reset vel
     player.setVelocity(0);
-
-    // --- Inputs (PC) ---
     let moved = false;
+
+    // --- PC ---
     if (!isMobile) {
       if (cursors.left.isDown)  { player.setVelocityX(-speed); playAnim("left",  isRunning);  moved = true; }
       else if (cursors.right.isDown){ player.setVelocityX(speed);  playAnim("right", isRunning); moved = true; }
@@ -256,7 +243,7 @@ window.onload = function () {
       else { player.anims.stop(); }
     }
 
-    // --- Inputs (Mobile) ---
+    // --- Mobile ---
     if (isMobile && joystick) {
       const f = joystick.force, angle = joystick.angle;
       if (f > 0) {
@@ -274,31 +261,22 @@ window.onload = function () {
       }
     }
 
-    // Depth sort
     player.setDepth(player.y);
 
-    // Dust only when running AND moving
     const moving = Math.abs(player.body.velocity.x) > 1 || Math.abs(player.body.velocity.y) > 1;
     dustEmitter.on = isRunning && moving;
-    if (isRunning && moving) {
-      dustEmitter.setSpeed({ min: -60, max: 60 });
-      dustEmitter.setAlpha({ start: 0.8, end: 0 });
-    }
 
-    // Mini-map arrow orientation + position (✅ sécurisé)
-    if (playerMiniArrow && minimapCam) {
-      if (player.anims.currentAnim) {
-        const dir = player.anims.currentAnim.key;
-        if      (dir === "up")    playerMiniArrow.rotation = 0;
-        else if (dir === "right") playerMiniArrow.rotation = Phaser.Math.DegToRad(90);
-        else if (dir === "down")  playerMiniArrow.rotation = Phaser.Math.DegToRad(180);
-        else if (dir === "left")  playerMiniArrow.rotation = Phaser.Math.DegToRad(-90);
-      }
-      playerMiniArrow.x = minimapCam.worldView.x + player.x * minimapCam.zoom;
-      playerMiniArrow.y = minimapCam.worldView.y + player.y * minimapCam.zoom;
+    if (player.anims.currentAnim) {
+      const dir = player.anims.currentAnim.key;
+      if      (dir === "up")    playerMiniArrow.rotation = 0;
+      else if (dir === "right") playerMiniArrow.rotation = Phaser.Math.DegToRad(90);
+      else if (dir === "down")  playerMiniArrow.rotation = Phaser.Math.DegToRad(180);
+      else if (dir === "left")  playerMiniArrow.rotation = Phaser.Math.DegToRad(-90);
     }
+    playerMiniArrow.x = minimapCam.worldView.x + player.x * minimapCam.zoom;
+    playerMiniArrow.y = minimapCam.worldView.y + player.y * minimapCam.zoom;
 
-    // --- POI proximity + E interaction ---
+    // --- POI ---
     currentPOI = null;
     for (let poi of poiData) {
       const d = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
@@ -317,7 +295,7 @@ window.onload = function () {
     if (player.anims.currentAnim?.key !== key) {
       player.anims.play(key, true);
     }
-    player.anims.timeScale = isRunning ? 2 : 1; // 5 fps base → 10 fps run
+    player.anims.timeScale = isRunning ? 2 : 1;
   }
 
   function showPressE() {
