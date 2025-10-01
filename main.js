@@ -53,26 +53,20 @@ window.onload = function () {
         // -------------------------------
         // 2️⃣ Créer calques et collisions
         // -------------------------------
-        const collisionLayers = [
-            "water", "rails", "piscine", "bord de map",
-            "vegetation 1", "vegetation 2", "batiments 1", "batiments 2",
-            "lampadaire_base" // parties collidantes des lampadaires
-        ];
 
-        layers.forEach(layerName => {
-            const layer = map.createLayer(layerName, [tileset1, tileset2, tileset3], 0, 0);
+        // 2a️⃣ Décor bancs + panneaux
+        const decorLayer = map.createLayer("lampadaire + bancs + panneaux", [tileset1, tileset2, tileset3], 0, 0);
+        decorLayer.setCollisionByExclusion([-1]);
+        this.physics.add.collider(player, decorLayer);
 
-            // collisions physiques
-            if (collisionLayers.includes(layerName)) {
-                layer.setCollisionByExclusion([-1]);
-                this.physics.add.collider(player, layer);
-            }
+        // 2b️⃣ Lampadaire base (collision)
+        const lampBaseLayer = map.createLayer("lampadaire_base", [tileset1, tileset2, tileset3], 0, 0);
+        lampBaseLayer.setCollisionByExclusion([-1]);
+        this.physics.add.collider(player, lampBaseLayer);
 
-            // parties visuelles devant joueur
-            if (layerName === "lampadaire_front") {
-                layer.setDepth(1000);
-            }
-        });
+        // 2c️⃣ Lampadaire haut (toujours devant joueur)
+        const lampHighLayer = map.createLayer("lampadaire_haut", [tileset1, tileset2, tileset3], 0, 0);
+        lampHighLayer.setDepth(1000);
 
         // -------------------------------
         // 3️⃣ Caméra
@@ -114,7 +108,7 @@ window.onload = function () {
         else if (cursors.down.isDown) { player.setVelocityY(speed); player.anims.play("down", true); }
         else { player.anims.stop(); }
 
-        // profondeur dynamique pour passer derrière les objets du sol
+        // Profondeur dynamique pour passer derrière objets décor sol
         player.setDepth(player.y);
 
         // -------------------------------
@@ -166,4 +160,3 @@ window.onload = function () {
         };
     }
 };
-
