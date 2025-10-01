@@ -55,7 +55,7 @@ window.onload = function () {
                 if (obj.name === "spawn_avezzano") {
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
                     player.setOrigin(0.5, 1);
-                    player.setScale(0.25); // ✅ joueur petit style Pokémon
+                    player.setScale(0.20); // ✅ joueur petit style Pokémon
                     player.setCollideWorldBounds(true);
                 } else {
                     poiData.push({
@@ -126,10 +126,10 @@ window.onload = function () {
         document.body.appendChild(interactionBox);
 
         // Animations
-        this.anims.create({ key: "down", frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }), frameRate: 10, repeat: -1 });
-        this.anims.create({ key: "left", frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }), frameRate: 10, repeat: -1 });
-        this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }), frameRate: 10, repeat: -1 });
-        this.anims.create({ key: "up", frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }), frameRate: 10, repeat: -1 });
+        this.anims.create({ key: "down", frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }), frameRate: 5, repeat: -1 });
+        this.anims.create({ key: "left", frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }), frameRate: 5, repeat: -1 });
+        this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }), frameRate: 5, repeat: -1 });
+        this.anims.create({ key: "up", frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }), frameRate: 5, repeat: -1 });
 
         // Mobile : joystick et bouton E
         if (isMobile) {
@@ -165,7 +165,7 @@ window.onload = function () {
 
     function update() {
         if (!player) return;
-        const speed = 70;
+        const speed = 90;
         player.setVelocity(0);
 
         // Mobile
