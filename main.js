@@ -1,27 +1,14 @@
 // ==================================
-// Erasmus Game - main.js (COMPLET FINAL)
+// Erasmus Game - main.js (COMPLET)
 // ==================================
 window.onload = function () {
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
   const config = {
     type: Phaser.AUTO,
     width: window.innerWidth,
     height: window.innerHeight,
     parent: "game",
     physics: { default: "arcade", arcade: { debug: false } },
-    scene: { preload, create, update },
-
-    // ✅ on mappe le plugin rexVirtualJoystick sur la scène
-    plugins: {
-      scene: [
-        {
-          key: "rexVirtualJoystick",
-          plugin: rexvirtualjoystickplugin,
-          mapping: "rexVirtualJoystick"
-        }
-      ]
-    }
+    scene: { preload, create, update }
   };
 
   const game = new Phaser.Game(config);
@@ -36,6 +23,7 @@ window.onload = function () {
   let interactionBox;                        // DOM modal
   let minimapCam, playerMiniArrow;           // minimap
   let dustEmitter;                           // dust effect when running
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   // --------------------------------
   // PRELOAD
@@ -43,17 +31,26 @@ window.onload = function () {
   function preload() {
     console.log("Preload…");
 
-    // Map + tilesets (respecte les noms EXACTS issus du .tmj)
+    // Map + tilesets (respect naming)
     this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
     this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
     this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
     this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
-    // Sprite joueur (spritesheet 3x4, 144x144 chaque frame)
+    // Player spritesheet 3x4, frame 144x144
     this.load.spritesheet("player", "images/characters/player.png", {
       frameWidth: 144,
       frameHeight: 144
     });
+
+    // Mobile joystick plugin
+    if (isMobile) {
+      this.load.scenePlugin({
+        key: "rexvirtualjoystickplugin",
+        url: "https://cdn.jsdelivr.net/npm/phaser3-rex-plugins/dist/rexvirtualjoystickplugin.min.js",
+        sceneKey: "rexUI"
+      });
+    }
   }
 
   // --------------------------------
@@ -69,7 +66,7 @@ window.onload = function () {
     const ts3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
     const tilesets = [ts1, ts2, ts3];
 
-    // --- Layers creation (sans collisions joueur pour l’instant) ---
+    // --- Layers creation (without player colliders yet) ---
     const collisionLayersNames = [
       "water",
       "rails",
@@ -80,10 +77,9 @@ window.onload = function () {
       "batiments 2"
     ];
 
-    const createdLayers = {}; // stocke les layers créés
+    const createdLayers = {}; // store created layers by name
     map.layers.forEach(ld => {
       const name = ld.name;
-      // on ne crée pas encore ces couches spéciales (on les gère à part)
       if (["lampadaire + bancs + panneaux", "lampadaire_base", "lampadaire_haut"].includes(name)) return;
       const layer = map.createLayer(name, tilesets, 0, 0);
       createdLayers[name] = layer;
@@ -92,19 +88,21 @@ window.onload = function () {
       }
     });
 
-    // --- Décor/Panneaux avec collisions ---
+    // Décor avec collisions
     const decorLayer = map.createLayer("lampadaire + bancs + panneaux", tilesets, 0, 0);
     if (decorLayer) decorLayer.setCollisionByExclusion([-1]);
 
-    // ✅ Lampadaire_base : PAS de collision, mais dessiné DEVANT le joueur
+    // Lampadaire_base → ❌ on enlève les collisions pour laisser passer derrière
     const lampBaseLayer = map.createLayer("lampadaire_base", tilesets, 0, 0);
-    if (lampBaseLayer) lampBaseLayer.setDepth(9998); // au-dessus du joueur
+    if (lampBaseLayer) {
+      lampBaseLayer.setDepth(999); // affiché devant joueur si besoin
+    }
 
-    // ✅ Lampadaire_haut : aussi au-dessus du joueur
+    // Lampadaire haut (devant joueur)
     const lampTopLayer = map.createLayer("lampadaire_haut", tilesets, 0, 0);
-    if (lampTopLayer) lampTopLayer.setDepth(9999);
+    if (lampTopLayer) lampTopLayer.setDepth(9999); // toujours devant
 
-    // --- Spawn + POI depuis le calque d’objets ---
+    // --- Spawn + POI from object layer ---
     const objLayer = map.getObjectLayer("POI");
     if (objLayer) {
       objLayer.objects.forEach(obj => {
@@ -125,35 +123,7 @@ window.onload = function () {
       });
     }
 
-          // Bouton Run (pour courir sur mobile)
-      const runBtn = document.createElement("div");
-      runBtn.id = "runBtn";
-      runBtn.textContent = "RUN";
-      Object.assign(runBtn.style, {
-        position: "absolute",
-        bottom: "180px",
-        right: "20px",
-        width: "70px",
-        height: "70px",
-        background: "rgba(200,0,0,0.7)",
-        color: "#fff",
-        fontSize: "20px",
-        borderRadius: "50%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: "999",
-        fontFamily: "system-ui, sans-serif",
-        fontWeight: "bold"
-      });
-      document.body.appendChild(runBtn);
-
-      // toggle du run (pressé = true)
-      runBtn.addEventListener("touchstart", () => { window.isMobileRunning = true; });
-      runBtn.addEventListener("touchend", () => { window.isMobileRunning = false; });
-
-
-    // --- Collisions avec le joueur maintenant ---
+    // --- Add collisions with player now ---
     Object.entries(createdLayers).forEach(([name, layer]) => {
       if (collisionLayersNames.includes(name)) {
         this.physics.add.collider(player, layer);
@@ -161,42 +131,48 @@ window.onload = function () {
       }
     });
     if (decorLayer) this.physics.add.collider(player, decorLayer);
-    // ❌ lampadaire_base retiré des collisions
-    // lampadaire_haut est purement visuel, pas de collision non plus
 
-    // --- Caméra ---
+    // --- Camera ---
     this.cameras.main.startFollow(player, true, 0.12, 0.12);
     this.cameras.main.setZoom(2.5);
 
-    // --- Mini-map ---
+    // --- Mini map ---
     const miniW = 220, miniH = 160, miniZoom = 0.22;
     minimapCam = this.cameras.add(window.innerWidth - miniW - 12, 12, miniW, miniH);
     minimapCam.setZoom(miniZoom).startFollow(player);
 
-    // cadre visuel mini-map
+    // mini-map frame
     const miniBg = this.add.graphics();
     miniBg.fillStyle(0x000000, 0.30).fillRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
     miniBg.lineStyle(2, 0xffffff, 1).strokeRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
     miniBg.setScrollFactor(0).setDepth(10000);
 
-    // --- Contrôles ---
+    // player arrow on minimap
+    playerMiniArrow = this.add.triangle(
+      minimapCam.x + miniW / 2,
+      minimapCam.y + miniH / 2,
+      0, 12, 12, 12, 6, 0,
+      0xff0000
+    ).setScrollFactor(0).setDepth(10001);
+
+    // --- Controls ---
     cursors = this.input.keyboard.createCursorKeys();
     shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-    // --- Modale d’interaction (DOM) ---
+    // --- Interaction modal (DOM) ---
     interactionBox = document.createElement("div");
     interactionBox.id = "interaction-box";
     interactionBox.style.display = "none";
     document.body.appendChild(interactionBox);
 
-    // --- Animations marche (base = 5 fps). On accélère via timeScale quand on court. ---
+    // --- Animations (walk base = 5 FPS; boost via timeScale when running) ---
     this.anims.create({ key: "down",  frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }),  frameRate: 5, repeat: -1 });
     this.anims.create({ key: "left",  frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }),  frameRate: 5, repeat: -1 });
     this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }),  frameRate: 5, repeat: -1 });
     this.anims.create({ key: "up",    frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }), frameRate: 5, repeat: -1 });
 
-    // --- Poussière quand on court ---
+    // --- Dust particles (only when running) ---
     const g = this.make.graphics({ x: 0, y: 0, add: false });
     g.fillStyle(0xffffff, 1).fillCircle(4, 4, 4);
     g.generateTexture("dust", 8, 8);
@@ -212,10 +188,9 @@ window.onload = function () {
     });
     dustEmitter.startFollow(player, 0, -6);
 
-    // --- Mobile : joystick + bouton E ---
+    // --- Mobile UI: joystick + E button ---
     if (isMobile) {
-      // ✅ utilisation via mapping 'rexVirtualJoystick' ajouté dans la config
-      joystick = this.rexVirtualJoystick.add(this, {
+      joystick = this.rexUI.add.joystick({
         x: 100,
         y: window.innerHeight - 100,
         radius: 55,
@@ -255,13 +230,14 @@ window.onload = function () {
   function update() {
     if (!player) return;
 
-    // Shift = courir → speed x2, animation accélérée (timeScale)
+    // Run (Shift) → speed x2, animation faster via timeScale
     const isRunning = shiftKey && shiftKey.isDown;
     const speed = isRunning ? 150 : 70;
 
+    // Reset vel
     player.setVelocity(0);
 
-    // --- PC ---
+    // --- Inputs (PC) ---
     let moved = false;
     if (!isMobile) {
       if (cursors.left.isDown)  { player.setVelocityX(-speed); playAnim("left",  isRunning);  moved = true; }
@@ -271,7 +247,7 @@ window.onload = function () {
       else { player.anims.stop(); }
     }
 
-    // --- Mobile ---
+    // --- Inputs (Mobile) ---
     if (isMobile && joystick) {
       const f = joystick.force, angle = joystick.angle;
       if (f > 0) {
@@ -289,10 +265,10 @@ window.onload = function () {
       }
     }
 
-    // tri de profondeur pour les sprites (devant/derrière)
+    // Depth sort
     player.setDepth(player.y);
 
-    // poussière seulement en courant ET en mouvement
+    // Dust only when running AND moving
     const moving = Math.abs(player.body.velocity.x) > 1 || Math.abs(player.body.velocity.y) > 1;
     dustEmitter.on = isRunning && moving;
     if (isRunning && moving) {
@@ -300,18 +276,20 @@ window.onload = function () {
       dustEmitter.setAlpha({ start: 0.8, end: 0 });
     }
 
-    // mini-map : orientation + position de la flèche
-    if (player.anims.currentAnim) {
-      const dir = player.anims.currentAnim.key;
-      if      (dir === "up")    playerMiniArrow.rotation = 0;
-      else if (dir === "right") playerMiniArrow.rotation = Phaser.Math.DegToRad(90);
-      else if (dir === "down")  playerMiniArrow.rotation = Phaser.Math.DegToRad(180);
-      else if (dir === "left")  playerMiniArrow.rotation = Phaser.Math.DegToRad(-90);
+    // Mini-map arrow orientation + position (✅ sécurisé)
+    if (playerMiniArrow && minimapCam) {
+      if (player.anims.currentAnim) {
+        const dir = player.anims.currentAnim.key;
+        if      (dir === "up")    playerMiniArrow.rotation = 0;
+        else if (dir === "right") playerMiniArrow.rotation = Phaser.Math.DegToRad(90);
+        else if (dir === "down")  playerMiniArrow.rotation = Phaser.Math.DegToRad(180);
+        else if (dir === "left")  playerMiniArrow.rotation = Phaser.Math.DegToRad(-90);
+      }
+      playerMiniArrow.x = minimapCam.worldView.x + player.x * minimapCam.zoom;
+      playerMiniArrow.y = minimapCam.worldView.y + player.y * minimapCam.zoom;
     }
-    playerMiniArrow.x = minimapCam.worldView.x + player.x * minimapCam.zoom;
-    playerMiniArrow.y = minimapCam.worldView.y + player.y * minimapCam.zoom;
 
-    // --- POI proximité + E ---
+    // --- POI proximity + E interaction ---
     currentPOI = null;
     for (let poi of poiData) {
       const d = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
@@ -330,8 +308,7 @@ window.onload = function () {
     if (player.anims.currentAnim?.key !== key) {
       player.anims.play(key, true);
     }
-    // boost visuel sans redéfinir les anims
-    player.anims.timeScale = isRunning ? 2 : 1; // 5 fps base → ~10 fps en run
+    player.anims.timeScale = isRunning ? 2 : 1; // 5 fps base → 10 fps run
   }
 
   function showPressE() {
