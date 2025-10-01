@@ -125,6 +125,34 @@ window.onload = function () {
       });
     }
 
+          // Bouton Run (pour courir sur mobile)
+      const runBtn = document.createElement("div");
+      runBtn.id = "runBtn";
+      runBtn.textContent = "RUN";
+      Object.assign(runBtn.style, {
+        position: "absolute",
+        bottom: "180px",
+        right: "20px",
+        width: "70px",
+        height: "70px",
+        background: "rgba(200,0,0,0.7)",
+        color: "#fff",
+        fontSize: "20px",
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: "999",
+        fontFamily: "system-ui, sans-serif",
+        fontWeight: "bold"
+      });
+      document.body.appendChild(runBtn);
+
+      // toggle du run (pressé = true)
+      runBtn.addEventListener("touchstart", () => { window.isMobileRunning = true; });
+      runBtn.addEventListener("touchend", () => { window.isMobileRunning = false; });
+
+
     // --- Collisions avec le joueur maintenant ---
     Object.entries(createdLayers).forEach(([name, layer]) => {
       if (collisionLayersNames.includes(name)) {
@@ -150,14 +178,6 @@ window.onload = function () {
     miniBg.fillStyle(0x000000, 0.30).fillRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
     miniBg.lineStyle(2, 0xffffff, 1).strokeRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
     miniBg.setScrollFactor(0).setDepth(10000);
-
-    // flèche du joueur sur la mini-map
-    playerMiniArrow = this.add.triangle(
-      minimapCam.x + miniW / 2,
-      minimapCam.y + miniH / 2,
-      0, 12, 12, 12, 6, 0,
-      0xff0000
-    ).setScrollFactor(0).setDepth(10001);
 
     // --- Contrôles ---
     cursors = this.input.keyboard.createCursorKeys();
