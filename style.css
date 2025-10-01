@@ -1,79 +1,176 @@
-/* Fond sombre quand une interaction est ouverte */
-body.overlay-active {
-    overflow: hidden;
-    background: rgba(0, 0, 0, 0.6);
+/* =========================
+   Global / Reset minimal
+   ========================= */
+* { box-sizing: border-box; }
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #111;            /* fond neutre derrière le canvas */
+  overflow: hidden;            /* pas de scroll */
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
 }
 
-/* Boîte d’interaction */
+/* Le canvas Phaser prend tout l'écran */
+#game, canvas {
+  display: block;
+  width: 100vw !important;
+  height: 100vh !important;
+}
+
+/* =========================
+   Hint "Appuie sur E"
+   ========================= */
+#pressE {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  backdrop-filter: blur(2px);
+  z-index: 10010;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+}
+
+/* =========================
+   Overlay & Modale POI
+   ========================= */
+/* Ajoutée/supprimée par JS sur <body> pour assombrir le fond */
+body.overlay-active::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(2px);
+  z-index: 10000;
+}
+
+/* Conteneur de la boîte d'interaction */
 #interaction-box {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 10000;
+  position: fixed;
+  inset: 0;
+  display: none;               /* JS -> display: flex quand ouvert */
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  pointer-events: none;        /* évite de bloquer le jeu si la boîte est masquée */
 }
 
-/* Contenu interaction */
+/* La carte (modale) elle-même */
 #interaction-box .interaction-content {
-    background: #fff;
-    color: #222;
-    border-radius: 10px;
-    padding: 20px;
-    width: 90%;
-    max-width: 500px;
-    text-align: center;
-    position: relative;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;        /* réactive les clics à l’intérieur */
+  width: min(92vw, 860px);
+  max-height: min(88vh, 820px);
+  background: #0f0f12;
+  color: #e9e9ef;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 22px 22px 18px 22px;
+  box-shadow:
+    0 30px 60px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(255,255,255,0.04) inset;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 12px;
+  animation: pop 160ms ease-out;
+}
+
+/* Titre + Texte */
+#interaction-box h2 {
+  margin: 0 40px 2px 0;        /* laisse de la place pour le bouton ✖ */
+  font-size: clamp(20px, 3.2vw, 28px);
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+#interaction-box p {
+  margin: 0 0 8px 0;
+  font-size: clamp(14px, 1.9vw, 16px);
+  line-height: 1.6;
+  color: #cfd2df;
+}
+
+/* Image */
+#interaction-box img {
+  width: 100%;
+  height: auto;
+  max-height: 58vh;            /* garde beaucoup d’espace visuel pour l’image */
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 14px 28px rgba(0,0,0,0.45);
 }
 
 /* Bouton de fermeture */
-#interaction-box .interaction-content #closeBox {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: #ff4d4d;
-    border: none;
-    color: white;
-    font-size: 20px;
-    padding: 5px 10px;
-    border-radius: 5px;
-    cursor: pointer;
+#interaction-box #closeBox {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  height: 36px;
+  width: 36px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 0;
+  display: grid;
+  place-items: center;
+  transition: transform 0.08s ease, background 0.2s ease, opacity 0.2s ease;
 }
-#interaction-box .interaction-content #closeBox:hover {
-    background: #d93636;
+#interaction-box #closeBox:hover {
+  background: rgba(255,255,255,0.14);
+  transform: scale(1.05);
 }
-
-/* Image dans la boîte */
-#interaction-box .interaction-content img {
-    max-width: 100%;
-    height: auto;
-    margin-top: 10px;
-    border-radius: 5px;
-}
-
-/* Texte */
-#interaction-box .interaction-content h2 {
-    font-size: 24px;
-    margin-bottom: 10px;
-}
-#interaction-box .interaction-content p {
-    font-size: 16px;
-    margin-bottom: 15px;
+#interaction-box #closeBox:active {
+  transform: scale(0.98);
 }
 
-/* Bouton E mobile */
+/* Petite animation d’apparition */
+@keyframes pop {
+  from { transform: translateY(6px) scale(0.98); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);    opacity: 1; }
+}
+
+/* =========================
+   Bouton mobile "E"
+   ========================= */
 #interactBtn {
-    display: none; /* caché par défaut sur PC */
+  position: absolute;
+  bottom: 100px;
+  right: 18px;
+  width: 64px;
+  height: 64px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  font-size: 32px;
+  border-radius: 50%;
+  display: none;               /* caché par défaut (affiché par JS si mobile) */
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  box-shadow: 0 12px 24px rgba(0,0,0,0.45);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-/* Visible uniquement sur mobile */
-@media (max-width: 768px) {
-    #interactBtn {
-        display: flex;
-    }
+/* Afficher seulement sur mobile (fallback si jamais JS ne l’a pas créé) */
+@media (hover: none), (pointer: coarse) {
+  #interactBtn { display: flex; }
+}
+
+/* =========================
+   Qualité visuelle optionnelle
+   ========================= */
+/* Rendre le texte un peu plus net */
+body, #interaction-box {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
