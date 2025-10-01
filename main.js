@@ -190,12 +190,29 @@ function update() {
             } else player.anims.stop();
         } else {
             // PC
-            if (cursors.left.isDown) { player.setVelocityX(-speed); player.anims.play("left", true); }
-            else if (cursors.right.isDown) { player.setVelocityX(speed); player.anims.play("right", true); }
-            else if (cursors.up.isDown) { player.setVelocityY(-speed); player.anims.play("up", true); }
-            else if (cursors.down.isDown) { player.setVelocityY(speed); player.anims.play("down", true); }
-            else player.anims.stop();
-        }
+            if (cursors.left.isDown) {
+    player.setVelocityX(-speed);
+    player.anims.play("left", true);
+    player.anims.currentAnim.frameRate = frameRate;
+}
+else if (cursors.right.isDown) {
+    player.setVelocityX(speed);
+    player.anims.play("right", true);
+    player.anims.currentAnim.frameRate = frameRate;
+}
+else if (cursors.up.isDown) {
+    player.setVelocityY(-speed);
+    player.anims.play("up", true);
+    player.anims.currentAnim.frameRate = frameRate;
+}
+else if (cursors.down.isDown) {
+    player.setVelocityY(speed);
+    player.anims.play("down", true);
+    player.anims.currentAnim.frameRate = frameRate;
+}
+else {
+    player.anims.stop();
+}
 
         player.setDepth(player.y);
 
