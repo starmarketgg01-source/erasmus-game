@@ -175,37 +175,38 @@ window.onload = function () {
     });
     dustEmitter.startFollow(player, 0, -6);
 
-    // --- Mobile UI: joystick + E button ---
-    if (isMobile) {
-      joystick = this.plugins.get('rexvirtualjoystickplugin').add(this, {
-        x: window.innerWidth / 2,   // centré au milieu bas
-        y: window.innerHeight - 100,
-        radius: 70,
-        base: this.add.circle(0, 0, 70, 0x666666, 0.4),
-        thumb: this.add.circle(0, 0, 35, 0xcccccc, 0.8),
-      });
+   // --- Mobile UI: joystick + E button ---
+if (isMobile) {
+  joystick = this.plugins.get('rexvirtualjoystickplugin').add(this, {
+    x: window.innerWidth / 2,   // centré bas
+    y: window.innerHeight - 90,
+    radius: 70,
+    base: this.add.circle(0, 0, 70, 0x666666, 0.4),
+    thumb: this.add.circle(0, 0, 35, 0xcccccc, 0.8),
+  });
 
-      interactBtn = document.createElement("div");
-      interactBtn.id = "interactBtn";
-      interactBtn.textContent = "E";
-      Object.assign(interactBtn.style, {
-        position: "absolute",
-        bottom: "100px",
-        right: "18px",
-        width: "64px",
-        height: "64px",
-        background: "rgba(0,0,0,0.6)",
-        color: "#fff",
-        fontSize: "32px",
-        borderRadius: "50%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: "999"
-      });
-      document.body.appendChild(interactBtn);
-      interactBtn.addEventListener("click", () => { if (currentPOI) showInteraction(currentPOI); });
-    }
+  // Bouton E (interagir)
+  interactBtn = document.createElement("div");
+  interactBtn.id = "interactBtn";
+  interactBtn.textContent = "E";
+  Object.assign(interactBtn.style, {
+    position: "absolute",
+    bottom: "100px",
+    right: "18px",
+    width: "64px",
+    height: "64px",
+    background: "rgba(0,0,0,0.6)",
+    color: "#fff",
+    fontSize: "32px",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: "9999"
+  });
+  document.body.appendChild(interactBtn);
+  interactBtn.addEventListener("click", () => { if (currentPOI) showInteraction(currentPOI); });
+}
 
     console.log("Layers:", map.layers.map(l => l.name));
     console.log("POI:", poiData);
