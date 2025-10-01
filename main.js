@@ -16,14 +16,17 @@ window.onload = function () {
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     function preload() {
-        // Carte
         this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
         this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
         this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
         this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
-        // Sprite joueur : remettre comme avant pour cadrage correct
-        this.load.spritesheet("player", "images/characters/player.png", { frameWidth: 32, frameHeight: 32 });
+        // 🎯 Sprite joueur correctement découpé
+        // Image 433x577, 12 frames (3 cols x 4 rows)
+        this.load.spritesheet("player", "images/characters/player.png", {
+            frameWidth: Math.floor(433 / 3), // 144
+            frameHeight: Math.floor(577 / 4) // 144
+        });
 
         if (isMobile) {
             this.load.scenePlugin({
@@ -46,8 +49,8 @@ window.onload = function () {
             objectLayer.objects.forEach(obj => {
                 if (obj.name === "spawn_avezzano") {
                     player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
-                    player.setScale(0.5); // réduire taille joueur
-                    player.setOrigin(0, 1);
+                    player.setOrigin(0, 1); // bas du sprite = collision
+                    player.setScale(1);      // taille normale, visible
                     player.setCollideWorldBounds(true);
                 } else {
                     poiData.push({
@@ -60,7 +63,7 @@ window.onload = function () {
             });
         }
 
-        // Calques visibles et collisions
+        // Calques et collisions
         const collisionLayers = ["water", "rails", "bord de map", "vegetation 1", "vegetation 2", "batiments 1", "batiments 2"];
         map.layers.forEach(layerData => {
             const name = layerData.name;
@@ -69,7 +72,7 @@ window.onload = function () {
             if (collisionLayers.includes(name)) this.physics.add.collider(player, layer);
         });
 
-        // Décor : bancs + panneaux
+        // Décor bancs + panneaux
         const decorLayer = map.createLayer("lampadaire + bancs + panneaux", [tileset1, tileset2, tileset3], 0, 0);
         decorLayer.setCollisionByExclusion([-1]);
         this.physics.add.collider(player, decorLayer);
@@ -79,20 +82,21 @@ window.onload = function () {
         lampBaseLayer.setCollisionByExclusion([-1]);
         this.physics.add.collider(player, lampBaseLayer);
 
-        // Lampadaire haut : devant joueur, pas collision
+        // Lampadaire haut (devant joueur)
         const lampHighLayer = map.createLayer("lampadaire_haut", [tileset1, tileset2, tileset3], 0, 0);
 
         // Caméra principale
         this.cameras.main.startFollow(player, true, 0.1, 0.1);
         this.cameras.main.setZoom(3);
 
-        // Mini-map en haut à droite
+        // Mini-map haut droite
         const miniCamWidth = 200;
         const miniCamHeight = 150;
         const miniCamZoom = 0.2;
         minimapCam = this.cameras.add(window.innerWidth - miniCamWidth - 10, 10, miniCamWidth, miniCamHeight)
             .setZoom(miniCamZoom)
             .startFollow(player);
+
         lampHighLayer.setVisible(false, minimapCam);
 
         const miniMapBg = this.add.graphics();
@@ -111,23 +115,23 @@ window.onload = function () {
             0xff0000
         ).setScrollFactor(0).setDepth(1001);
 
-        // Clavier PC
+        // Clavier
         cursors = this.input.keyboard.createCursorKeys();
         interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-        // Interaction box DOM
+        // Interaction box
         interactionBox = document.createElement("div");
         interactionBox.id = "interaction-box";
         interactionBox.style.display = "none";
         document.body.appendChild(interactionBox);
 
-        // Animations joueur
+        // Animations
         this.anims.create({ key: "down", frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }), frameRate: 10, repeat: -1 });
         this.anims.create({ key: "left", frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }), frameRate: 10, repeat: -1 });
         this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }), frameRate: 10, repeat: -1 });
         this.anims.create({ key: "up", frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }), frameRate: 10, repeat: -1 });
 
-        // Mobile : joystick + bouton interaction
+        // Mobile
         if (isMobile) {
             joystick = this.rexUI.add.joystick({
                 x: 100,
@@ -135,7 +139,7 @@ window.onload = function () {
                 radius: 50,
                 base: this.add.circle(0, 0, 50, 0x888888, 0.5),
                 thumb: this.add.circle(0, 0, 25, 0xcccccc, 0.8),
-            }).on('update', () => {});
+            });
 
             interactBtn = document.createElement("div");
             interactBtn.id = "interactBtn";
@@ -155,9 +159,7 @@ window.onload = function () {
             interactBtn.style.zIndex = "999";
             document.body.appendChild(interactBtn);
 
-            interactBtn.addEventListener("click", () => {
-                if (currentPOI) showInteraction(currentPOI);
-            });
+            interactBtn.addEventListener("click", () => { if (currentPOI) showInteraction(currentPOI); });
         }
     }
 
@@ -202,14 +204,13 @@ window.onload = function () {
             else if (dir === "left") playerMiniArrow.rotation = Phaser.Math.DegToRad(-90);
         }
 
-        // POI interaction
+        // POI
         currentPOI = null;
         for (let poi of poiData) {
             const dist = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
             if (dist < 40) { currentPOI = poi; if (!isMobile) showPressE(); break; }
         }
         if (!currentPOI && !isMobile) hidePressE();
-
         if (!isMobile && currentPOI && Phaser.Input.Keyboard.JustDown(interactionKey)) showInteraction(currentPOI);
     }
 
