@@ -4,31 +4,15 @@ window.onload = function () {
         width: window.innerWidth,
         height: window.innerHeight,
         parent: "game",
-        physics: {
-            default: "arcade",
-            arcade: {
-                debug: false
-            }
-        },
-        scene: {
-            preload: preload,
-            create: create,
-            update: update
-        }
+        physics: { default: "arcade", arcade: { debug: false } },
+        scene: { preload, create, update }
     };
 
     const game = new Phaser.Game(config);
 
-    let player;
-    let cursors;
-    let map;
-    let poiData = [];
-    let interactionKey;
-    let currentPOI = null;
-    let interactionBox;
+    let player, cursors, map, poiData = [], interactionKey, currentPOI = null, interactionBox;
 
     function preload() {
-        console.log("Chargement des assets...");
         this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
         this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
         this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
@@ -37,17 +21,16 @@ window.onload = function () {
     }
 
     function create() {
-        console.log("Création de la scène...");
         map = this.make.tilemap({ key: "map" });
-
         const tileset1 = map.addTilesetImage("tileset_part1.png", "tileset_part1");
         const tileset2 = map.addTilesetImage("tileset_part2.png", "tileset_part2");
         const tileset3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
 
         const layers = map.layers.map(l => l.name);
-        console.log("Calques disponibles :", layers);
 
-        // 1️⃣ Créer joueur et POI
+        // -------------------------------
+        // 1️⃣ Spawn joueur et POI
+        // -------------------------------
         const objectLayer = map.getObjectLayer("POI");
         if (objectLayer) {
             objectLayer.objects.forEach(obj => {
@@ -58,8 +41,7 @@ window.onload = function () {
                     player.setCollideWorldBounds(true);
                 } else {
                     poiData.push({
-                        x: obj.x,
-                        y: obj.y,
+                        x: obj.x, y: obj.y,
                         title: obj.properties.find(p => p.name === "title")?.value || obj.name,
                         description: obj.properties.find(p => p.name === "text")?.value || "Aucune description disponible.",
                         image: obj.properties.find(p => p.name === "media")?.value || null
@@ -68,45 +50,53 @@ window.onload = function () {
             });
         }
 
-        console.log("POI trouvés :", poiData);
-
+        // -------------------------------
         // 2️⃣ Créer calques et collisions
+        // -------------------------------
         const collisionLayers = [
             "water", "rails", "piscine", "bord de map",
             "vegetation 1", "vegetation 2", "batiments 1", "batiments 2",
-            "lampadaire_base" // collisions physiques pour lampadaires
+            "lampadaire_base" // parties collidantes des lampadaires
         ];
 
         layers.forEach(layerName => {
             const layer = map.createLayer(layerName, [tileset1, tileset2, tileset3], 0, 0);
 
+            // collisions physiques
             if (collisionLayers.includes(layerName)) {
                 layer.setCollisionByExclusion([-1]);
                 this.physics.add.collider(player, layer);
-                console.log("Collision activée sur :", layerName);
             }
 
-            // Lampadaire visuel devant le joueur
+            // parties visuelles devant joueur
             if (layerName === "lampadaire_front") {
                 layer.setDepth(1000);
             }
         });
 
+        // -------------------------------
         // 3️⃣ Caméra
+        // -------------------------------
         this.cameras.main.startFollow(player, true, 0.1, 0.1);
         this.cameras.main.setZoom(3);
 
+        // -------------------------------
         // 4️⃣ Clavier
+        // -------------------------------
         cursors = this.input.keyboard.createCursorKeys();
         interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-        // 5️⃣ Interaction DOM
+        // -------------------------------
+        // 5️⃣ Interaction box (DOM)
+        // -------------------------------
         interactionBox = document.createElement("div");
         interactionBox.id = "interaction-box";
         interactionBox.style.display = "none";
         document.body.appendChild(interactionBox);
 
-        // 6️⃣ Animations
+        // -------------------------------
+        // 6️⃣ Animations joueur
+        // -------------------------------
         this.anims.create({ key: "down", frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }), frameRate: 10, repeat: -1 });
         this.anims.create({ key: "left", frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }), frameRate: 10, repeat: -1 });
         this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }), frameRate: 10, repeat: -1 });
@@ -115,7 +105,6 @@ window.onload = function () {
 
     function update() {
         if (!player) return;
-
         const speed = 150;
         player.setVelocity(0);
 
@@ -125,10 +114,12 @@ window.onload = function () {
         else if (cursors.down.isDown) { player.setVelocityY(speed); player.anims.play("down", true); }
         else { player.anims.stop(); }
 
-        // Profondeur dynamique
+        // profondeur dynamique pour passer derrière les objets du sol
         player.setDepth(player.y);
 
+        // -------------------------------
         // Détection POI
+        // -------------------------------
         currentPOI = null;
         for (let poi of poiData) {
             const dist = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
@@ -155,30 +146,24 @@ window.onload = function () {
         }
     }
 
-    function hidePressE() {
-        const e = document.getElementById("pressE");
-        if (e) e.remove();
-    }
+    function hidePressE() { const e = document.getElementById("pressE"); if (e) e.remove(); }
 
     function showInteraction(poi) {
         document.body.classList.add("overlay-active");
-
         let imgPath = poi.image;
         if (imgPath && !imgPath.startsWith("images/")) imgPath = "images/" + imgPath;
-
         interactionBox.innerHTML = `
             <div class="interaction-content">
                 <button id="closeBox">✖</button>
                 <h2>${poi.title}</h2>
                 <p>${poi.description}</p>
                 ${imgPath ? `<img src="${imgPath}" alt="${poi.title}">` : ""}
-            </div>
-        `;
+            </div>`;
         interactionBox.style.display = "flex";
-
         document.getElementById("closeBox").onclick = () => {
             interactionBox.style.display = "none";
             document.body.classList.remove("overlay-active");
         };
     }
 };
+
