@@ -11,6 +11,53 @@ body, html {
   height: 100vh;
 }
 
+/* --- Fenêtre d’interaction (POI) --- */
+#interaction-box {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999; /* tout en haut */
+}
+
+#interaction-box .interaction-content {
+  background: #222;
+  color: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  max-width: 90%;
+  text-align: center;
+  position: relative;
+}
+
+#interaction-box .interaction-content img {
+  max-width: 100%;
+  margin-top: 10px;
+  border-radius: 8px;
+}
+
+/* --- Bouton fermer (croix ✖) --- */
+#interaction-box #closeBox {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 22px;
+  background: crimson;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  box-shadow: 0 3px #111;
+  z-index: 100000; /* au-dessus de tout */
+}
+
 /* --- Contrôles mobiles --- */
 #mobile-controls {
   position: fixed;
