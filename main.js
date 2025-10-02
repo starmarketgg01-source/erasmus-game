@@ -324,16 +324,36 @@ window.onload = function () {
     };
   }
 
+  // ✅ CORRIGÉ AVEC FONDU NOIR
   function showCityBanner(name) {
+    // Bannière (création si besoin)
     let banner = document.getElementById("city-banner");
     if (!banner) {
       banner = document.createElement("div");
       banner.id = "city-banner";
       document.body.appendChild(banner);
     }
-    banner.innerText = name;
-    banner.classList.add("show");
-    setTimeout(()=>{ banner.classList.remove("show"); }, 4000);
+
+    // Overlay de fondu (création si besoin)
+    let overlay = document.getElementById("fade-overlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "fade-overlay";
+      document.body.appendChild(overlay);
+    }
+
+    overlay.classList.add("active");
+
+    setTimeout(() => {
+      banner.innerText = name;
+      banner.classList.add("show");
+
+      overlay.classList.remove("active");
+
+      setTimeout(() => {
+        banner.classList.remove("show");
+      }, 4000);
+    }, 420);
   }
 
   // ---------------------------------------------------------------------------
