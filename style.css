@@ -1,225 +1,275 @@
-/* ===============================
-   RESET & BASE
-   =============================== */
-body, html {
+/* =============================
+   RESET
+============================= */
+html, body {
   margin: 0;
   padding: 0;
-  overflow: hidden;
-  font-family: 'Arial', sans-serif;
-  background: #000;
-  height: 100%;
   width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: "Arial", sans-serif;
 }
 
-/* Conteneur du jeu */
+/* =============================
+   CONTENEUR JEU
+============================= */
 #game {
   width: 100vw;
   height: 100vh;
-  position: relative;
+  background: #000;
+  z-index: 1;
 }
 
-/* ===============================
+/* =============================
    INTRO SCREEN
-   =============================== */
+============================= */
 #intro {
   position: fixed;
   top: 0; left: 0;
-  width: 100vw; height: 100vh;
+  width: 100%; height: 100%;
+  background: linear-gradient(135deg, #0044cc, #0099ff);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #1e3c72, #2a5298);
-  z-index: 20000;
+  z-index: 10000;
 }
 
 #intro h1 {
-  font-size: 64px;
+  font-size: 4em;
   font-weight: bold;
-  color: #FFD700; /* jaune Erasmus Game */
-  text-shadow: 3px 3px 0px #000, -2px -2px 0px #ff0000;
-  margin-bottom: 40px;
+  color: yellow;
+  text-shadow: 4px 4px 0px #000;
+  margin-bottom: 30px;
+  letter-spacing: 2px;
 }
 
 #intro button {
-  padding: 16px 36px;
+  font-size: 1.5em;
+  padding: 14px 35px;
   background: red;
+  color: white;
   border: none;
   border-radius: 8px;
-  color: #fff;
-  font-size: 22px;
-  font-weight: bold;
-  box-shadow: 0px 4px #111;
   cursor: pointer;
-  transition: transform 0.2s, background 0.3s;
+  font-weight: bold;
+  box-shadow: 0 4px #222;
+  transition: transform 0.2s ease, background 0.2s ease;
 }
 #intro button:hover {
+  background: darkred;
   transform: scale(1.05);
-  background: #cc0000;
 }
 
-/* ===============================
-   INTERACTION BOX (POI)
-   =============================== */
+/* =============================
+   BANNIÈRE VILLE
+============================= */
+#city-banner {
+  position: fixed;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.85);
+  color: yellow;
+  font-size: 2em;
+  font-weight: bold;
+  padding: 12px 24px;
+  border-radius: 10px;
+  transition: top 0.6s ease-in-out;
+  z-index: 9999;
+  text-shadow: 2px 2px 0 #000;
+}
+#city-banner.show {
+  top: 30px;
+}
+
+/* =============================
+   INTERACTION BOX
+============================= */
 #interaction-box {
   position: fixed;
   top: 0; left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0,0,0,0.75);
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.8);
   display: none;
-  justify-content: center;
   align-items: center;
-  z-index: 15000;
-  padding: 20px;
+  justify-content: center;
+  z-index: 10001;
+  backdrop-filter: blur(3px);
 }
 
 #interaction-box .interaction-content {
-  background: #2a2a2a;
+  background: #222;
   color: #fff;
-  padding: 24px;
-  border-radius: 14px;
-  max-width: 700px;
-  width: 95%;
-  max-height: 85vh;
+  padding: 20px;
+  border-radius: 12px;
+  max-width: 90%;
+  max-height: 85%;
   overflow-y: auto;
   text-align: center;
   position: relative;
-  box-shadow: 0px 0px 25px rgba(0,0,0,0.7);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.6);
 }
 
-#interaction-box .interaction-content h2 {
-  font-size: 28px;
-  color: #FFD700;
-  margin-bottom: 10px;
+#interaction-box h2 {
+  color: yellow;
+  margin-bottom: 12px;
+  font-size: 1.6em;
 }
 
-#interaction-box .interaction-content p {
-  font-size: 18px;
-  color: #ddd;
+#interaction-box p {
   margin-bottom: 15px;
+  line-height: 1.4;
+  font-size: 1.1em;
 }
 
-#interaction-box .interaction-content img {
+#interaction-box img {
   max-width: 100%;
   max-height: 60vh;
   border-radius: 10px;
-  margin: 15px 0;
+  margin-top: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
 }
 
-/* BOUTON FERMER (CROIX) */
+/* Croix de fermeture */
 #interaction-box #closeBox {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 48px;
-  height: 48px;
-  font-size: 26px;
-  font-weight: bold;
-  border: none;
-  border-radius: 50%;
+  top: -20px; 
+  right: -20px;
   background: crimson;
-  color: #fff;
+  border: none;
+  color: white;
+  font-size: 28px;
+  border-radius: 50%;
+  width: 50px; height: 50px;
   cursor: pointer;
-  z-index: 20001;
-  box-shadow: 0 3px #111;
+  z-index: 10002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px #111;
 }
 #interaction-box #closeBox:hover {
-  background: #ff3333;
+  background: darkred;
 }
 
-/* ===============================
-   CITY BANNER (nom de ville)
-   =============================== */
-#city-banner {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 12px 28px;
-  background: rgba(0,0,0,0.7);
-  color: #FFD700;
-  font-size: 32px;
-  font-weight: bold;
-  border-radius: 12px;
-  text-align: center;
-  z-index: 16000;
-  opacity: 0;
-  transition: opacity 0.8s ease;
-}
-#city-banner.show {
-  opacity: 1;
-}
-
-/* ===============================
-   MOBILE CONTROLS (D-pad + boutons)
-   =============================== */
+/* =============================
+   MOBILE CONTROLS
+============================= */
 #mobile-controls {
   position: fixed;
   bottom: 20px;
-  left: 0;
-  right: 0;
+  left: 0; right: 0;
   width: 100%;
   display: flex;
   justify-content: space-between;
-  pointer-events: none;
-  z-index: 14000;
+  pointer-events: none; /* cliquer uniquement sur boutons */
+  z-index: 9000;
 }
 
-/* --- Croix directionnelle --- */
+/* Croix directionnelle style GameBoy */
 #dpad {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-left: 30px;
-  gap: 10px;
+  margin-left: 20px;
   pointer-events: auto;
 }
-
 .dpad-middle {
   display: flex;
   justify-content: center;
-  gap: 30px;
+  gap: 20px;
 }
-
 .dpad-btn {
-  width: 70px;
-  height: 70px;
+  width: 70px; height: 70px;
   border-radius: 50%;
-  font-size: 28px;
-  font-weight: bold;
   border: 3px solid #111;
   background: #444;
-  color: #fff;
-  cursor: pointer;
-  box-shadow: 0 4px #222;
+  color: white;
+  font-size: 28px;
+  font-weight: bold;
+  margin: 5px;
+  pointer-events: auto;
+  box-shadow: 0 5px #222;
+  transition: transform 0.1s ease;
 }
 .dpad-btn:active {
+  transform: scale(0.9);
   background: #666;
 }
 
-/* --- Boutons actions (E / Run) --- */
+/* Boutons actions (E / Run) */
 #action-buttons {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-right: 30px;
+  margin-right: 20px;
   gap: 20px;
   pointer-events: auto;
 }
-
 .action-btn {
-  width: 80px;
-  height: 80px;
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  border: 3px solid #111;
   font-size: 26px;
   font-weight: bold;
-  border-radius: 50%;
-  background: red;
-  color: #fff;
-  border: 3px solid #111;
+  color: white;
   cursor: pointer;
-  box-shadow: 0 4px #222;
+  box-shadow: 0 5px #222;
+  transition: transform 0.1s ease;
 }
 .action-btn:active {
-  background: #cc0000;
+  transform: scale(0.9);
+}
+.action-btn.red {
+  background: crimson;
+}
+.action-btn.green {
+  background: green;
+}
+
+/* =============================
+   RESPONSIVE
+============================= */
+@media (max-width: 768px) {
+  #intro h1 {
+    font-size: 2.5em;
+  }
+  #intro button {
+    font-size: 1.2em;
+    padding: 10px 25px;
+  }
+  #city-banner {
+    font-size: 1.4em;
+  }
+  .dpad-btn {
+    width: 60px; height: 60px;
+    font-size: 22px;
+  }
+  .action-btn {
+    width: 70px; height: 70px;
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  #intro h1 {
+    font-size: 2em;
+  }
+  #intro button {
+    font-size: 1em;
+    padding: 8px 20px;
+  }
+  #city-banner {
+    font-size: 1.2em;
+  }
+  .dpad-btn {
+    width: 55px; height: 55px;
+    font-size: 20px;
+  }
+  .action-btn {
+    width: 65px; height: 65px;
+    font-size: 18px;
+  }
 }
