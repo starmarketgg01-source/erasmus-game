@@ -212,7 +212,18 @@ window.onload = function () {
 
     // Contrôles mobiles
     bindMobileControls();
-  }
+  };
+  
+  // --- Intro start
+const introBtn = document.getElementById("introStart");
+if (introBtn) {
+  introBtn.onclick = () => {
+    document.getElementById("intro")?.classList.add("fade-out");
+    // petit fondu caméra
+    const cam = this.cameras.main;
+    cam.fadeIn(400, 0,0,0);
+  };
+}
 
   // ---------------------------------------------------------------------------
   // UPDATE
