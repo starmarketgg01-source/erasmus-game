@@ -2,49 +2,40 @@ body, html {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  font-family: Arial, sans-serif;
   background: #000;
 }
 
-/* --- Intro --- */
+/* Intro */
 #intro {
   position: fixed;
-  inset: 0;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: url("images/intro-bg.jpg") center/cover no-repeat; /* <-- mets ton ciel bleu cartoon ici */
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  background: linear-gradient(to bottom, #1E90FF, #4682B4); /* bleu Erasmus */
+  justify-content: center;
   z-index: 10000;
 }
 
-#intro-title {
-  font-size: clamp(42px, 8vw, 84px);
-  font-weight: 900;
-  margin: 0 0 24px 0;
-  color: #FFD700; /* Jaune arcade */
-  text-shadow:
-    3px 3px 0 #000,        /* contour noir */
-    -2px -2px 0 #fff,      /* léger contour blanc */
-    0 0 18px rgba(0,0,0,.35);
-  letter-spacing: 3px;
-  text-align: center;
-  text-transform: uppercase;
+#intro h1 {
+  font-size: 64px;
+  color: yellow; /* jaune comme Start Game */
+  font-family: 'Press Start 2P', monospace;
+  text-shadow: 3px 3px 0 #000;
+  margin-bottom: 40px;
 }
 
-#introStart {
+#intro button {
   font-size: 28px;
   padding: 15px 40px;
   border: none;
   border-radius: 12px;
-  background: crimson;
-  color: white;
+  background: linear-gradient(to right, green, white, red); /* drapeau Italie */
+  color: black;
+  font-weight: bold;
   cursor: pointer;
   box-shadow: 0 5px #111;
-  transition: transform 0.2s;
-}
-#introStart:hover {
-  transform: scale(1.05);
 }
 
 #intro.fade-out {
@@ -54,22 +45,120 @@ body, html {
   to { opacity: 0; visibility: hidden; }
 }
 
-/* --- Title card (Avezzano, etc.) --- */
-#title-card {
+/* Conteneur du jeu */
+#game {
+  width: 100vw;
+  height: 100vh;
+}
+
+/* --- Fenêtre interaction --- */
+#interaction-box {
   position: fixed;
-  top: 40%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 64px;
-  font-weight: bold;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+#interaction-box .interaction-content {
+  background: #222;
   color: #fff;
-  text-shadow: 4px 4px 10px #000;
-  opacity: 0;
-  transition: opacity 1s;
-  z-index: 9000;
-}
-#title-card.show {
-  opacity: 1;
+  padding: 20px;
+  border-radius: 12px;
+  max-width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  text-align: center;
+  position: relative;
 }
 
+#interaction-box img {
+  max-width: 100%;
+  max-height: 60vh;
+  margin-top: 10px;
+  border-radius: 8px;
+}
 
+#interaction-box #closeBox {
+  position: absolute;
+  top: 10px; right: 10px;
+  font-size: 22px;
+  background: crimson;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px; height: 40px;
+  cursor: pointer;
+  z-index: 10000;
+}
+
+/* --- Contrôles mobiles --- */
+#mobile-controls {
+  position: fixed;
+  bottom: 20px;
+  left: 0; right: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 5000;
+}
+
+/* Croix directionnelle */
+#dpad {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-left: 40px;
+}
+
+.dpad-middle {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+}
+
+.dpad-btn {
+  width: 70px; height: 70px;
+  font-size: 28px;
+  font-weight: bold;
+  border-radius: 50%;
+  background: #666;
+  color: #fff;
+  border: 3px solid #222;
+  pointer-events: auto;
+  margin: 8px;
+  box-shadow: 0 4px #222;
+}
+
+/* Boutons actions */
+#action-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-right: 40px;
+  gap: 30px;
+}
+
+.action-btn {
+  width: 80px; height: 80px;
+  font-size: 28px;
+  font-weight: bold;
+  border-radius: 50%;
+  pointer-events: auto;
+  box-shadow: 0 4px #222;
+  border: 3px solid #222;
+}
+
+.action-btn.red {
+  background: crimson;
+  color: #fff;
+}
+
+.action-btn.green {
+  background: limegreen;
+  color: #fff;
+}
