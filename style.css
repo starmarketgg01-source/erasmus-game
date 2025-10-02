@@ -3,6 +3,7 @@ body, html {
   padding: 0;
   overflow: hidden;
   font-family: Arial, sans-serif;
+  background: #000;
 }
 
 /* --- Intro --- */
@@ -13,22 +14,21 @@ body, html {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  background: linear-gradient(to bottom, #1E90FF, #4682B4); /* bleu Erasmus */
   z-index: 10000;
 }
-#intro-bg {
-  position: absolute;
-  inset: 0;
-  background: url("images/bg-sky.png") no-repeat center center;
-  background-size: cover;
-  z-index: -1;
-}
+
 #intro-title {
-  font-size: 64px;
+  font-size: 72px;
   font-weight: bold;
-  color: #FFD700;
-  text-shadow: 4px 4px #FF0000, 6px 6px #000;
-  margin-bottom: 30px;
+  text-align: center;
+  color: #1DB954; /* vert Italie */
+  text-shadow: 
+    4px 4px 0px #FF0000,  /* ombre rouge */
+    -4px -4px 0px #FFFFFF; /* ombre blanche */
+  margin-bottom: 40px;
 }
+
 #introStart {
   font-size: 28px;
   padding: 15px 40px;
@@ -38,7 +38,12 @@ body, html {
   color: white;
   cursor: pointer;
   box-shadow: 0 5px #111;
+  transition: transform 0.2s;
 }
+#introStart:hover {
+  transform: scale(1.05);
+}
+
 #intro.fade-out {
   animation: fadeOut 1s forwards;
 }
@@ -64,64 +69,4 @@ body, html {
   opacity: 1;
 }
 
-/* --- Jeu --- */
-#game {
-  width: 100vw;
-  height: 100vh;
-}
-
-/* --- Mobile controls --- */
-#mobile-controls {
-  position: fixed;
-  bottom: 20px;
-  left: 0;
-  right: 0;
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  pointer-events: none;
-}
-
-#dpad {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-left: 40px;
-}
-.dpad-middle {
-  display: flex;
-  justify-content: center;
-  gap: 40px;
-}
-.dpad-btn {
-  width: 70px;
-  height: 70px;
-  font-size: 28px;
-  border-radius: 50%;
-  background: #555;
-  color: #fff;
-  border: 3px solid #222;
-  pointer-events: auto;
-  margin: 8px;
-  box-shadow: 0 4px #222;
-}
-
-#action-buttons {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-right: 40px;
-  gap: 30px;
-}
-.action-btn {
-  width: 80px;
-  height: 80px;
-  font-size: 28px;
-  border-radius: 50%;
-  background: crimson;
-  color: #fff;
-  border: 3px solid #222;
-  pointer-events: auto;
-  box-shadow: 0 4px #222;
-}
 
