@@ -143,6 +143,22 @@ window.onload = function () {
       });
     }
 
+    const bgm = document.getElementById('bgm');
+const sfxOpen = document.getElementById('sfx-open');
+const sfxClose = document.getElementById('sfx-close');
+document.addEventListener('click', ()=>{ // policy mobile
+  if (bgm && bgm.paused) { bgm.volume = .35; bgm.play().catch(()=>{}); }
+},{ once:true });
+
+    // marquer les POI avec un petit halo discret
+const markers = [];
+poiData.forEach(p=>{
+  const halo = this.add.circle(p.x, p.y-18, 10, 0x00d1ff, 0.15);
+  halo.setDepth(p.y+1);
+  this.tweens.add({ targets: halo, scale: 1.3, alpha:0.35, yoyo:true, repeat:-1, duration:800 });
+  markers.push(halo);
+});
+
     // Colliders
     Object.entries(createdLayers).forEach(([name, layer]) => {
       if (collisionLayers.includes(name)) {
@@ -346,6 +362,20 @@ if (introBtn) {
     if (imgPath && !imgPath.startsWith("images/")) {
       imgPath = "images/" + imgPath;
     }
+
+    try{ document.getElementById('sfx-open')?.play(); }catch(_){}
+const closeBtn = document.getElementById("closeBox");
+if (closeBtn) {
+  closeBtn.onclick = () => {
+    interactionBox.style.display = "none";
+    document.body.classList.remove("overlay-active");
+    try{ document.getElementById('sfx-close')?.play(); }catch(_){}
+  };
+}
+    const fallback = "images/placeholders/placeholder.jpg";
+const src = imgPath || fallback;
+// ...
+${`<img src="${src}" alt="${poi.title}">`}
 
     interactionBox.innerHTML = `
       <div class="interaction-content">
