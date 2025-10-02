@@ -1,144 +1,109 @@
-// ==================================
-// Erasmus Game - main.js corrigé + debug collisions
-// ==================================
-window.onload = function () {
-  // -------------------------------
-  // CONFIG
-  // -------------------------------
+window.onload = () => {
+  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+
+  let player, cursors, shiftKey, interactionKey;
+  let interactionBox, dustEmitter, playerMiniArrow, minimapCam, miniFrameGfx;
+  let poiData = [], currentPOI = null;
+  let villes = [], currentVille = null;
+  let mobileInput = { up: false, down: false, left: false, right: false, run: false };
+  let createdLayers = {};
+
   const config = {
     type: Phaser.AUTO,
     width: window.innerWidth,
     height: window.innerHeight,
-    parent: "game",
     physics: {
       default: "arcade",
-      arcade: { debug: false }
+      arcade: {
+        gravity: { y: 0 },
+        debug: false
+      }
     },
     scene: { preload, create, update }
   };
 
   const game = new Phaser.Game(config);
 
-  // -------------------------------
-  // GLOBALS
-  // -------------------------------
-  let map, player;
-  let cursors, shiftKey, interactionKey;
-
-  let minimapCam, playerMiniArrow, miniFrameGfx;
-  let dustEmitter;
-  let poiData = [];
-  let currentPOI = null;
-
-  let villes = [];
-  let currentVille = null;
-
-  let interactionBox;
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const mobileInput = { up: false, down: false, left: false, right: false, run: false };
-
-  // 🔥 Nouveau : layers globaux pour debug
-  let createdLayers = {};
-  const collisionLayers = [
-    "water","rails","bord de map","vegetation 1","vegetation 2","batiments 1","batiments 2"
-  ];
-
   // ---------------------------------------------------------------------------
   // PRELOAD
   // ---------------------------------------------------------------------------
   function preload() {
-    this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
-    this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
-    this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
-    this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
-
-    this.load.spritesheet("player", "images/characters/player.png", {
-      frameWidth: 144, frameHeight: 144
-    });
+    this.load.tilemapTiledJSON("map", "erasmus.tmj");
+    this.load.image("tiles", "tiles.png");
+    this.load.spritesheet("player", "player.png", { frameWidth: 32, frameHeight: 48 });
   }
 
   // ---------------------------------------------------------------------------
   // CREATE
   // ---------------------------------------------------------------------------
   function create() {
-    map = this.make.tilemap({ key: "map" });
+    const map = this.make.tilemap({ key: "map" });
+    const tileset = map.addTilesetImage("tileset", "tiles");
 
-    const ts1 = map.addTilesetImage("tileset_part1.png", "tileset_part1");
-    const ts2 = map.addTilesetImage("tileset_part2.png", "tileset_part2");
-    const ts3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
-    const tilesets = [ts1, ts2, ts3];
-
-    createdLayers = {};
-
-    map.layers.forEach(ld => {
-      const name = ld.name;
-      if (["lampadaire + bancs + panneaux", "lampadaire_base", "lampadaire_haut"].includes(name)) return;
-      const layer = map.createLayer(name, tilesets, 0, 0);
-      createdLayers[name] = layer;
-      if (collisionLayers.includes(name)) layer.setCollisionByExclusion([-1]);
+    // Créer toutes les couches et activer collisions
+    map.layers.forEach(l => {
+      const layer = map.createLayer(l.name, tileset, 0, 0);
+      createdLayers[l.name] = layer;
+      if (!["Calque 1", "sol"].includes(l.name)) {
+        layer.setCollisionByExclusion([-1]);
+      }
     });
 
-    const decorLayer = map.createLayer("lampadaire + bancs + panneaux", tilesets, 0, 0);
-    if (decorLayer) decorLayer.setCollisionByExclusion([-1]);
-
-    const lampBaseLayer = map.createLayer("lampadaire_base", tilesets, 0, 0);
-    if (lampBaseLayer) lampBaseLayer.setDepth(3000);
-
-    const lampTopLayer = map.createLayer("lampadaire_haut", tilesets, 0, 0);
-    if (lampTopLayer) lampTopLayer.setDepth(9999);
-
-    // === Spawn player à spawn_avezzano (sécurisé) ===
-    let spawnPoint = null;
-    const objLayer = map.getObjectLayer("POI");
-    if (objLayer) {
-      objLayer.objects.forEach(obj => {
-        if (obj.name === "spawn_avezzano") {
-          spawnPoint = obj;
-        } else {
-          poiData.push({
-            x: obj.x,
-            y: obj.y,
-            title: obj.properties?.find(p => p.name === "title")?.value || obj.name,
-            description: obj.properties?.find(p => p.name === "text")?.value || "",
-            image: obj.properties?.find(p => p.name === "media")?.value || null
-          });
-        }
+    // Charger POI
+    const poiLayer = map.getObjectLayer("POI");
+    if (poiLayer) {
+      poiLayer.objects.forEach(obj => {
+        poiData.push({
+          name: obj.name,
+          x: obj.x,
+          y: obj.y,
+          width: obj.width || 32,
+          height: obj.height || 32
+        });
       });
     }
-    if (!spawnPoint) {
-      console.warn("⚠️ Aucun spawn_avezzano trouvé, spawn forcé en (100,100)");
-      spawnPoint = { x: 100, y: 100 };
-    }
 
-    player = this.physics.add.sprite(spawnPoint.x, spawnPoint.y, "player", 0);
-    player.setOrigin(0.5, 1);
-    player.setScale(0.20);
-    player.setCollideWorldBounds(true);
-
-    // === Villes ===
+    // Charger villes
     const villeLayer = map.getObjectLayer("VILLE");
     if (villeLayer) {
       villeLayer.objects.forEach(obj => {
         villes.push({
           name: obj.name,
-          x: obj.x + (obj.width || 0) / 2,
-          y: obj.y + (obj.height || 0) / 2,
-          radius: Math.max(obj.width || 0, obj.height || 0) / 2 || 150
+          x: obj.x,
+          y: obj.y,
+          radius: 150
         });
       });
     }
 
-    // Colliders
-    Object.entries(createdLayers).forEach(([name, layer]) => {
-      if (collisionLayers.includes(name)) this.physics.add.collider(player, layer);
+    // Spawn joueur
+    let spawn = map.findObject("spawn", obj => obj.name === "spawn_avezzano");
+    if (!spawn) spawn = { x: 100, y: 100 };
+    player = this.physics.add.sprite(spawn.x, spawn.y, "player", 1);
+    player.setSize(20, 32).setOffset(6, 16);
+    player.setCollideWorldBounds(true);
+
+    Object.values(createdLayers).forEach(l => {
+      this.physics.add.collider(player, l);
     });
-    if (decorLayer) this.physics.add.collider(player, decorLayer);
 
-    // Caméra
-    this.cameras.main.startFollow(player, true, 0.12, 0.12);
-    this.cameras.main.setZoom(2.5);
+    // Fix blocage pont → désactiver collisions indices problématiques
+    ["ground", "ponts"].forEach(layerName => {
+      const layer = createdLayers[layerName];
+      if (layer) {
+        layer.forEachTile(tile => {
+          if ([809, 1341, 2269].includes(tile.index)) {
+            tile.setCollision(false, false, false, false);
+          }
+        });
+      }
+    });
 
-        // Mini-map
+    // Caméras
+    this.cameras.main.startFollow(player);
+    this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+
+    // Minimap
     const miniW = 220, miniH = 160, miniZoom = 0.22;
     minimapCam = this.cameras.add(window.innerWidth - miniW - 12, 12, miniW, miniH);
     minimapCam.setZoom(miniZoom).startFollow(player);
@@ -168,7 +133,7 @@ window.onload = function () {
       interactionBox.style.display = "none";
     }
 
-    // Animations joueur
+    // Animations
     this.anims.create({ key: "down", frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }), frameRate: 5, repeat: -1 });
     this.anims.create({ key: "left", frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }), frameRate: 5, repeat: -1 });
     this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }), frameRate: 5, repeat: -1 });
@@ -203,7 +168,7 @@ window.onload = function () {
     }
   }
 
-  // ---------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
   // UPDATE
   // ---------------------------------------------------------------------------
   function update() {
@@ -218,7 +183,8 @@ window.onload = function () {
       if (cursors.right.isDown) vx += speed;
       if (cursors.up.isDown) vy -= speed;
       if (cursors.down.isDown) vy += speed;
-    } else {
+    }
+    if (isMobile) {
       if (mobileInput.left) vx -= speed;
       if (mobileInput.right) vx += speed;
       if (mobileInput.up) vy -= speed;
@@ -231,10 +197,12 @@ window.onload = function () {
     else if (vx > 0) playAnim("right", isRunning);
     else if (vy < 0) playAnim("up", isRunning);
     else if (vy > 0) playAnim("down", isRunning);
-    else if (player.anims.currentAnim) {
-      const dir = player.anims.currentAnim.key;
-      if (["up","down","left","right"].includes(dir)) {
-        player.anims.play("idle-" + dir, true);
+    else {
+      if (player.anims.currentAnim) {
+        const dir = player.anims.currentAnim.key;
+        if (["up","down","left","right"].includes(dir)) {
+          player.anims.play("idle-" + dir, true);
+        }
       }
     }
 
@@ -276,48 +244,10 @@ window.onload = function () {
       console.log("Entrée dans :", inVille);
       showCityBanner(inVille);
     }
-
-    // 🔥 Debug collisions quand bloqué
-    debugCheckBlocking();
   }
 
   // ---------------------------------------------------------------------------
-  // DEBUG FUNCTION
-  // ---------------------------------------------------------------------------
-  function debugCheckBlocking() {
-    if (!player || !player.body) return;
-    const body = player.body;
-    if (!(body.blocked.left || body.blocked.right || body.blocked.up || body.blocked.down)) return;
-
-    const checks = [
-      { dir: "left", dx: -16, dy: 0 },
-      { dir: "right", dx: 16, dy: 0 },
-      { dir: "up", dx: 0, dy: -16 },
-      { dir: "down", dx: 0, dy: 16 },
-    ];
-
-    for (const c of checks) {
-      if (!body.blocked[c.dir]) continue;
-      const wx = player.x + c.dx;
-      const wy = player.y + c.dy;
-      console.warn(`⚠️ Player blocked ${c.dir} — check (${Math.round(wx)}, ${Math.round(wy)})`);
-
-      for (const [layerName, tLayer] of Object.entries(createdLayers)) {
-        try {
-          const tile = tLayer.getTileAtWorldXY(wx, wy, true);
-          if (tile && tile.index !== -1) {
-            console.log(
-              `  → layer "${layerName}" a tile index=${tile.index} at (${tile.x},${tile.y})`,
-              tile.properties || {}
-            );
-          }
-        } catch (_) {}
-      }
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // HELPERS + MOBILE CONTROLS
+  // HELPERS
   // ---------------------------------------------------------------------------
   function playAnim(key, isRunning) {
     if (!player.anims.isPlaying || player.anims.currentAnim?.key !== key) {
@@ -326,10 +256,90 @@ window.onload = function () {
     player.anims.timeScale = isRunning ? 2 : 1;
   }
 
-  function showPressE() { /* ... inchangé ... */ }
-  function hidePressE() { /* ... inchangé ... */ }
-  function showInteraction(poi) { /* ... inchangé ... */ }
-  function showCityBanner(name) { /* ... inchangé ... */ }
-  function bindMobileControls() { /* ... inchangé ... */ }
-};
+  function showPressE() {
+    if (!document.getElementById("pressE")) {
+      const e = document.createElement("div");
+      e.id = "pressE";
+      e.innerText = "Appuie sur E";
+      Object.assign(e.style, {
+        position: "absolute", top: "20px", left: "50%", transform: "translateX(-50%)",
+        background: "rgba(0,0,0,0.7)", color: "#fff", padding: "6px 12px",
+        borderRadius: "6px", zIndex: "9999"
+      });
+      document.body.appendChild(e);
+    }
+  }
 
+  function hidePressE() {
+    const e = document.getElementById("pressE");
+    if (e) e.remove();
+  }
+
+  function showInteraction(poi) {
+    try { document.getElementById("sfx-open")?.play(); } catch(_) {}
+    interactionBox.innerHTML = `
+      <div class="interaction-content">
+        <button id="closeBox">✖</button>
+        <h2>${poi.name}</h2>
+        <p>Découvre ${poi.name} !</p>
+      </div>
+    `;
+    interactionBox.style.display = "flex";
+    const closeBtn = document.getElementById("closeBox");
+    if (closeBtn) closeBtn.onclick = () => {
+      interactionBox.style.display = "none";
+      try { document.getElementById("sfx-close")?.play(); } catch(_) {}
+    };
+  }
+
+  function showCityBanner(name) {
+    let banner = document.getElementById("city-banner");
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "city-banner";
+      document.body.appendChild(banner);
+    }
+    let overlay = document.getElementById("fade-overlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "fade-overlay";
+      document.body.appendChild(overlay);
+    }
+    overlay.classList.add("active");
+    setTimeout(() => {
+      banner.innerText = name;
+      banner.classList.add("show");
+      overlay.classList.remove("active");
+      setTimeout(() => banner.classList.remove("show"), 4000);
+    }, 420);
+  }
+
+  // ---------------------------------------------------------------------------
+  // MOBILE CONTROLS
+  // ---------------------------------------------------------------------------
+  function bindMobileControls() {
+    const bindButton = (id, onDown, onUp) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const start = (e) => { e.preventDefault(); onDown && onDown(); };
+      const end   = (e) => { e.preventDefault(); onUp && onUp();   };
+      el.addEventListener("touchstart", start, { passive: false });
+      el.addEventListener("touchend", end,   { passive: false });
+      el.addEventListener("mousedown", start);
+      el.addEventListener("mouseup", end);
+      el.addEventListener("mouseleave", end);
+    };
+    bindButton("btn-up",    () => mobileInput.up = true,    () => mobileInput.up = false);
+    bindButton("btn-down",  () => mobileInput.down = true,  () => mobileInput.down = false);
+    bindButton("btn-left",  () => mobileInput.left = true,  () => mobileInput.left = false);
+    bindButton("btn-right", () => mobileInput.right = true, () => mobileInput.right = false);
+    bindButton("btn-run",   () => mobileInput.run = true,   () => mobileInput.run = false);
+
+    const eBtn = document.getElementById("btn-interact");
+    if (eBtn) {
+      const tap = (evt) => { evt.preventDefault(); if (currentPOI) showInteraction(currentPOI); };
+      eBtn.addEventListener("touchstart", tap, { passive: false });
+      eBtn.addEventListener("mousedown", tap);
+    }
+  }
+};
