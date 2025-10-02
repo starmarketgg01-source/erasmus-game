@@ -2,38 +2,41 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Erasmus Game</title>
+  <title>Mon Jeu</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
 </head>
 <body>
-  <!-- Intro screen -->
-  <div id="intro">
-    <h1>ERASMUS GAME</h1>
-    <button id="introStart">COMMENCER</button>
-  </div>
-
-  <!-- Conteneur du jeu -->
   <div id="game"></div>
 
-  <!-- Bannière des villes -->
+  <!-- Intro -->
+  <div id="intro">
+    <h1>Bienvenue dans le jeu</h1>
+    <button id="startBtn">Commencer</button>
+  </div>
+
+  <!-- Bannière de ville -->
   <div id="city-banner"></div>
 
-  <!-- Overlay pour fondu noir -->
+  <!-- Transition noire -->
   <div id="fade-overlay"></div>
 
-  <!-- Boîte d'interaction (remplie dynamiquement) -->
+  <!-- Interaction box -->
   <div id="interaction-box"></div>
 
   <!-- Mobile controls -->
   <div id="mobile-controls">
-    <button id="btn-up">▲</button>
-    <button id="btn-left">◀</button>
-    <button id="btn-down">▼</button>
-    <button id="btn-right">▶</button>
-    <button id="btn-run">RUN</button>
-    <button id="btn-interact">E</button>
+    <div id="dpad">
+      <button id="btn-up" class="dpad-btn">▲</button>
+      <button id="btn-left" class="dpad-btn">◀</button>
+      <button id="btn-right" class="dpad-btn">▶</button>
+      <button id="btn-down" class="dpad-btn">▼</button>
+    </div>
+    <div id="action-buttons">
+      <button id="btn-interact" class="action-btn">E</button>
+      <button id="btn-run" class="action-btn">RUN</button>
+    </div>
   </div>
 
   <!-- Sons -->
@@ -45,6 +48,7 @@
   <script src="main.js"></script>
 </body>
 </html>
+
 
 
 
