@@ -119,13 +119,12 @@ window.onload = function () {
       decorLayer.setCollisionByExclusion([-1]);
     }
 
-    // --- Lampadaire base : pas de collision → le joueur peut passer derrière
-    const lampBaseLayer = map.createLayer("lampadaire_base", tilesets, 0, 0);
-    if (lampBaseLayer) {
-      // On n'active PAS de collision
-      // On le place au-dessus des couches basses pour que le joueur passe visuellement derrière (setDepth dynamique géré par player.setDepth(player.y))
-      lampBaseLayer.setDepth(3000);
-    }
+    // --- Lampadaire base : pas de collision → joueur passe derrière
+  const lampBaseLayer = map.createLayer("lampadaire_base", tilesets, 0, 0);
+  if (lampBaseLayer) {
+    lampBaseLayer.setDepth(8000); // placé au-dessus du joueur → joueur passe derrière
+}
+
 
     // --- Lampadaire haut : toujours devant
     const lampTopLayer = map.createLayer("lampadaire_haut", tilesets, 0, 0);
@@ -406,33 +405,35 @@ window.onload = function () {
   }
 
   function showInteraction(poi) {
-    // Appliquer fond assombri (si tu veux un effet body overlay)
-    document.body.classList.add("overlay-active");
+   function showInteraction(poi) {
+  document.body.classList.add("overlay-active");
 
-    let imgPath = poi.image;
-    // Tolère "images/..." déjà présent ; sinon, préfixe
-    if (imgPath && !imgPath.startsWith("images/")) {
-      imgPath = "images/" + imgPath;
-    }
+  let imgPath = poi.image;
+  if (imgPath && !imgPath.startsWith("images/")) imgPath = "images/" + imgPath;
 
-    interactionBox.innerHTML = `
-      <div class="interaction-content">
-        <button id="closeBox" aria-label="Fermer">✖</button>
-        <h2>${poi.title}</h2>
-        <p>${poi.description}</p>
-        ${imgPath ? `<img src="${imgPath}" alt="${poi.title}">` : ""}
-      </div>
-    `;
-    interactionBox.style.display = "flex";
+  interactionBox.innerHTML = `
+    <div class="interaction-content">
+      <button id="closeBox" aria-label="Fermer" style="
+        position:absolute; top:10px; right:10px;
+        background:#000; color:#fff; border:none;
+        border-radius:50%; width:30px; height:30px;
+        font-size:16px; cursor:pointer;">✖</button>
+      <h2>${poi.title}</h2>
+      <p>${poi.description}</p>
+      ${imgPath ? `<img src="${imgPath}" alt="${poi.title}">` : ""}
+    </div>
+  `;
+  interactionBox.style.display = "flex";
 
-    const closeBtn = document.getElementById("closeBox");
-    if (closeBtn) {
-      closeBtn.onclick = () => {
-        interactionBox.style.display = "none";
-        document.body.classList.remove("overlay-active");
-      };
-    }
+  // écouteur persistant pour fermer
+  const closeBtn = document.getElementById("closeBox");
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      interactionBox.style.display = "none";
+      document.body.classList.remove("overlay-active");
+    });
   }
+}
 
   // ---------------------------------------------------------------------------
   // MOBILE CONTROLS (D-pad GameBoy + boutons)
