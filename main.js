@@ -371,13 +371,12 @@ window.onload = function () {
   // ---------------------------------------------------------------------------
   // HELPERS
   // ---------------------------------------------------------------------------
-  function playAnim(key, isRunning) {
-    if (player.anims.currentAnim?.key !== key) {
-      player.anims.play(key, true);
-    }
-    // Boost visuel sans refaire les animations
-    player.anims.timeScale = isRunning ? 2 : 1; // base 5 fps → ~10 fps en sprint
+function playAnim(key, isRunning) {
+  if (!player.anims.isPlaying || player.anims.currentAnim?.key !== key) {
+    player.anims.play(key, true);
   }
+  player.anims.timeScale = isRunning ? 2 : 1;
+}
 
   function showPressE() {
     if (!document.getElementById("pressE")) {
