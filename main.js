@@ -122,8 +122,6 @@ window.onload = function () {
     // --- Lampadaire base : pas de collision → le joueur peut passer derrière
     const lampBaseLayer = map.createLayer("lampadaire_base", tilesets, 0, 0);
     if (lampBaseLayer) {
-      // On n'active PAS de collision
-      // On le place au-dessus des couches basses pour que le joueur passe visuellement derrière (setDepth dynamique géré par player.setDepth(player.y))
       lampBaseLayer.setDepth(3000);
     }
 
@@ -160,19 +158,17 @@ window.onload = function () {
     Object.entries(createdLayers).forEach(([name, layer]) => {
       if (collisionLayers.includes(name)) {
         this.physics.add.collider(player, layer);
-        // console.log("Collision ON:", name);
       }
     });
     if (decorLayer) {
       this.physics.add.collider(player, decorLayer);
     }
-    // lampadaire_base : pas de collision volontairement
 
     // --- Caméra
     this.cameras.main.startFollow(player, true, 0.12, 0.12);
     this.cameras.main.setZoom(2.5);
 
-    // --- Mini-map (vue d'ensemble)
+    // --- Mini-map
     const miniW = 220;
     const miniH = 160;
     const miniZoom = 0.22;
@@ -180,18 +176,16 @@ window.onload = function () {
     minimapCam = this.cameras.add(window.innerWidth - miniW - 12, 12, miniW, miniH);
     minimapCam.setZoom(miniZoom).startFollow(player);
 
-    // Cadre visuel de la mini-map (dessiné en HUD)
     miniFrameGfx = this.add.graphics();
     miniFrameGfx.fillStyle(0x000000, 0.30).fillRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
     miniFrameGfx.lineStyle(2, 0xffffff, 1).strokeRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
     miniFrameGfx.setScrollFactor(0).setDepth(11000);
 
-    // Flèche joueur sur mini-map (HUD)
     playerMiniArrow = this.add.triangle(
-      minimapCam.x + miniW / 2,     // x
-      minimapCam.y + miniH / 2,     // y
-      0, 12, 12, 12, 6, 0,          // triangle
-      0xff0000                      // couleur
+      minimapCam.x + miniW / 2,
+      minimapCam.y + miniH / 2,
+      0, 12, 12, 12, 6, 0,
+      0xff0000
     ).setScrollFactor(0).setDepth(11001);
 
     // --- Contrôles clavier (PC)
@@ -199,13 +193,13 @@ window.onload = function () {
     shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-    // --- Boîte DOM pour les interactions (POI)
+    // --- Boîte DOM
     interactionBox = document.createElement("div");
     interactionBox.id = "interaction-box";
     interactionBox.style.display = "none";
     document.body.appendChild(interactionBox);
 
-    // --- Animations du joueur (5 FPS, boostées par timeScale si run)
+    // --- Animations joueur (walk)
     this.anims.create({
       key: "down",
       frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }),
@@ -227,7 +221,13 @@ window.onload = function () {
       frameRate: 5, repeat: -1
     });
 
-    // --- Particules de poussière (quand on court)
+    // --- Animations idle
+    this.anims.create({ key: "idle-down", frames: [{ key: "player", frame: 1 }] });
+    this.anims.create({ key: "idle-left", frames: [{ key: "player", frame: 4 }] });
+    this.anims.create({ key: "idle-right", frames: [{ key: "player", frame: 7 }] });
+    this.anims.create({ key: "idle-up", frames: [{ key: "player", frame: 10 }] });
+
+    // --- Particules
     const g = this.make.graphics({ x: 0, y: 0, add: false });
     g.fillStyle(0xffffff, 1).fillCircle(4, 4, 4);
     g.generateTexture("dust", 8, 8);
@@ -242,16 +242,13 @@ window.onload = function () {
       lifespan: 400,
       on: false
     });
-    // légèrement derrière les pieds
     dustEmitter.startFollow(player, 0, -6);
 
-    // --- Bind des contrôles mobiles (D-pad GameBoy)
+    // --- Contrôles mobiles
     bindMobileControls();
 
-    // --- Adaptation resize (optionnel mais utile sur mobile en orientation)
     window.addEventListener("resize", () => {
       game.scale.resize(window.innerWidth, window.innerHeight);
-      // Reposition mini-map HUD
       miniFrameGfx?.clear();
       const x = window.innerWidth - miniW - 12;
       const y = 12;
@@ -271,16 +268,14 @@ window.onload = function () {
   function update() {
     if (!player) return;
 
-    // Détection "run" : Shift (PC) ou bouton Run (mobile)
     const isRunning = (shiftKey && shiftKey.isDown) || mobileInput.run;
     const speed = isRunning ? 150 : 70;
 
     player.setVelocity(0);
     let moved = false;
 
-    // --- INPUTS PC ---
+    // PC
     if (!isMobile) {
-      // Horizontal
       if (cursors.left.isDown) {
         player.setVelocityX(-speed);
         playAnim("left", isRunning);
@@ -291,7 +286,6 @@ window.onload = function () {
         moved = true;
       }
 
-      // Vertical
       if (cursors.up.isDown) {
         player.setVelocityY(-speed);
         playAnim("up", isRunning);
@@ -301,11 +295,9 @@ window.onload = function () {
         playAnim("down", isRunning);
         moved = true;
       }
-
-      if (!moved) player.anims.stop();
     }
 
-    // --- INPUTS MOBILE (D-pad) ---
+    // Mobile
     if (isMobile) {
       if (mobileInput.left) {
         player.setVelocityX(-speed);
@@ -326,32 +318,37 @@ window.onload = function () {
         playAnim("down", isRunning);
         moved = true;
       }
-
-      if (!moved) player.anims.stop();
     }
 
-    // Profondeur = Y pour un tri naturel (derrière/devant décor)
+    // STOP → idle
+    if (!moved) {
+      player.setVelocity(0);
+      if (player.anims.currentAnim) {
+        const dir = player.anims.currentAnim.key;
+        if (["up", "down", "left", "right"].includes(dir)) {
+          player.anims.play("idle-" + dir, true);
+        }
+      }
+    }
+
     player.setDepth(player.y);
 
-    // Poussière seulement si on court ET qu'on bouge
     const moving = Math.abs(player.body.velocity.x) > 1 || Math.abs(player.body.velocity.y) > 1;
     dustEmitter.on = isRunning && moving;
 
-    // --- Mini-map : orienter la flèche
     if (player.anims.currentAnim) {
       const dir = player.anims.currentAnim.key;
-      if (dir === "up") playerMiniArrow.rotation = 0;
-      else if (dir === "right") playerMiniArrow.rotation = Phaser.Math.DegToRad(90);
-      else if (dir === "down") playerMiniArrow.rotation = Phaser.Math.DegToRad(180);
-      else if (dir === "left") playerMiniArrow.rotation = Phaser.Math.DegToRad(-90);
+      if (dir === "up" || dir === "idle-up") playerMiniArrow.rotation = 0;
+      else if (dir === "right" || dir === "idle-right") playerMiniArrow.rotation = Phaser.Math.DegToRad(90);
+      else if (dir === "down" || dir === "idle-down") playerMiniArrow.rotation = Phaser.Math.DegToRad(180);
+      else if (dir === "left" || dir === "idle-left") playerMiniArrow.rotation = Phaser.Math.DegToRad(-90);
     }
-    // Repositionner la flèche (HUD)
     if (minimapCam && playerMiniArrow) {
       playerMiniArrow.x = minimapCam.worldView.x + player.x * minimapCam.zoom;
       playerMiniArrow.y = minimapCam.worldView.y + player.y * minimapCam.zoom;
     }
 
-    // --- Proximité POI + interaction E (sur PC)
+    // POI
     currentPOI = null;
     for (let poi of poiData) {
       const d = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
@@ -371,12 +368,12 @@ window.onload = function () {
   // ---------------------------------------------------------------------------
   // HELPERS
   // ---------------------------------------------------------------------------
-function playAnim(key, isRunning) {
-  if (!player.anims.isPlaying || player.anims.currentAnim?.key !== key) {
-    player.anims.play(key, true);
+  function playAnim(key, isRunning) {
+    if (!player.anims.isPlaying || player.anims.currentAnim?.key !== key) {
+      player.anims.play(key, true);
+    }
+    player.anims.timeScale = isRunning ? 2 : 1;
   }
-  player.anims.timeScale = isRunning ? 2 : 1;
-}
 
   function showPressE() {
     if (!document.getElementById("pressE")) {
@@ -405,11 +402,9 @@ function playAnim(key, isRunning) {
   }
 
   function showInteraction(poi) {
-    // Appliquer fond assombri (si tu veux un effet body overlay)
     document.body.classList.add("overlay-active");
 
     let imgPath = poi.image;
-    // Tolère "images/..." déjà présent ; sinon, préfixe
     if (imgPath && !imgPath.startsWith("images/")) {
       imgPath = "images/" + imgPath;
     }
@@ -434,10 +429,9 @@ function playAnim(key, isRunning) {
   }
 
   // ---------------------------------------------------------------------------
-  // MOBILE CONTROLS (D-pad GameBoy + boutons)
+  // MOBILE CONTROLS
   // ---------------------------------------------------------------------------
   function bindMobileControls() {
-    // Helper : bind simple (touch + souris) pour compatibilité mobile/desktop
     const bindButton = (id, onDown, onUp) => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -450,16 +444,13 @@ function playAnim(key, isRunning) {
       el.addEventListener("mouseleave", end);
     };
 
-    // D-pad
     bindButton("btn-up",    () => mobileInput.up = true,    () => mobileInput.up = false);
     bindButton("btn-down",  () => mobileInput.down = true,  () => mobileInput.down = false);
     bindButton("btn-left",  () => mobileInput.left = true,  () => mobileInput.left = false);
     bindButton("btn-right", () => mobileInput.right = true, () => mobileInput.right = false);
 
-    // RUN (maintenir)
     bindButton("btn-run",   () => mobileInput.run = true,   () => mobileInput.run = false);
 
-    // E (action ponctuelle)
     const eBtn = document.getElementById("btn-interact");
     if (eBtn) {
       const tap = (evt) => {
