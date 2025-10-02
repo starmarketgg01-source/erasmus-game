@@ -3,6 +3,7 @@ body, html {
   padding: 0;
   overflow: hidden;
   background: #000;
+  font-family: 'Impact', 'Arial Black', sans-serif;
 }
 
 /* Conteneur du jeu */
@@ -11,7 +12,75 @@ body, html {
   height: 100vh;
 }
 
-/* --- Fenêtre d’interaction (POI) --- */
+/* ===========================
+   INTRO
+=========================== */
+#intro {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(to bottom, #00aaff, #0066cc);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+}
+
+.intro-card {
+  text-align: center;
+}
+
+.arcade-title {
+  font-size: 72px;
+  font-weight: 900;
+  color: #ffe92b;
+  text-shadow: 6px 6px 0px #d62828, 10px 10px 0px #000;
+  margin: 0 0 20px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+
+#introStart {
+  font-size: 22px;
+  font-weight: bold;
+  padding: 12px 24px;
+  border-radius: 10px;
+  border: none;
+  background: #d62828;
+  color: #fff;
+  box-shadow: 0 5px #811717;
+  cursor: pointer;
+}
+#introStart:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px #811717;
+}
+
+/* ===========================
+   TITLE CARD (Villes)
+=========================== */
+#title-card {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 80px;
+  font-weight: 900;
+  color: #ffe92b;
+  text-shadow: 6px 6px 0px #d62828, 10px 10px 0px #000;
+  background: rgba(0,0,0,0.6);
+  opacity: 0;
+  z-index: 99998;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+#title-card.show {
+  opacity: 1;
+}
+
+/* ===========================
+   FENÊTRE D’INTERACTION (POI)
+=========================== */
 #interaction-box {
   position: fixed;
   top: 0;
@@ -22,7 +91,7 @@ body, html {
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 99999; /* tout en haut */
+  z-index: 99999;
 }
 
 #interaction-box .interaction-content {
@@ -31,20 +100,19 @@ body, html {
   padding: 20px;
   border-radius: 12px;
   max-width: 90%;
-  max-height: 85vh;  /* <= limite en hauteur */
-  overflow-y: auto;  /* scroll si contenu trop grand */
+  max-height: 85vh;
+  overflow-y: auto;
   text-align: center;
   position: relative;
 }
 
 #interaction-box .interaction-content img {
   max-width: 100%;
-  max-height: 60vh; /* <= l’image ne dépasse pas l’écran */
+  max-height: 60vh;
   margin-top: 10px;
   border-radius: 8px;
 }
 
-/* --- Bouton fermer (croix ✖) --- */
 #interaction-box #closeBox {
   position: absolute;
   top: 10px;
@@ -58,10 +126,11 @@ body, html {
   height: 40px;
   cursor: pointer;
   box-shadow: 0 3px #111;
-  z-index: 100000; /* au-dessus de tout */
 }
 
-/* --- Contrôles mobiles --- */
+/* ===========================
+   CONTRÔLES MOBILES (GameBoy)
+=========================== */
 #mobile-controls {
   position: fixed;
   bottom: 20px;
@@ -70,23 +139,21 @@ body, html {
   width: 100%;
   display: flex;
   justify-content: space-between;
-  pointer-events: none; /* permet de cliquer seulement sur les boutons */
+  pointer-events: none;
 }
 
-/* --- Croix directionnelle --- */
+/* Croix directionnelle */
 #dpad {
   display: flex;
   flex-direction: column;
   align-items: center;
   margin-left: 40px;
 }
-
 .dpad-middle {
   display: flex;
   justify-content: center;
   gap: 40px;
 }
-
 .dpad-btn {
   width: 70px;
   height: 70px;
@@ -101,7 +168,7 @@ body, html {
   box-shadow: 0 4px #222;
 }
 
-/* --- Boutons actions (E / Run) --- */
+/* Boutons actions (E / Run) */
 #action-buttons {
   display: flex;
   flex-direction: column;
@@ -109,7 +176,6 @@ body, html {
   margin-right: 40px;
   gap: 30px;
 }
-
 .action-btn {
   width: 80px;
   height: 80px;
@@ -122,22 +188,3 @@ body, html {
   pointer-events: auto;
   box-shadow: 0 4px #222;
 }
-
-#intro {
-  position: fixed; inset: 0; background: radial-gradient(#0b0f1a, #000);
-  display:flex; align-items:center; justify-content:center; z-index:100000;
-}
-.intro-card{
-  text-align:center; color:#fff; padding:32px 40px; border-radius:16px;
-  background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.2);
-  backdrop-filter:saturate(120%) blur(6px); box-shadow:0 30px 120px rgba(0,0,0,0.6);
-}
-.intro-card h1{ margin:0 0 8px; letter-spacing:2px; font-size:32px; }
-.intro-card p{opacity:.8; margin:0 0 16px;}
-#introStart{
-  background:#00d1ff; color:#001018; border:none; border-radius:12px; padding:10px 18px;
-  font-weight:700; cursor:pointer; box-shadow:0 10px 20px rgba(0,209,255,.35);
-}
-.fade-out{ animation: fadeout .6s ease forwards; }
-@keyframes fadeout { to{ opacity:0; visibility:hidden; } }
-
