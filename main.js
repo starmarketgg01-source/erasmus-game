@@ -129,6 +129,13 @@ window.onload = function () {
     });
     if (decorLayer) this.physics.add.collider(player, decorLayer);
 
+    // Debug collisions : affiche dans la console quel calque bloque
+this.physics.world.on('collide', (obj1, obj2) => {
+  if (obj1 === player) {
+    console.log("Collision avec :", obj2.layer?.layer?.name || obj2.name || obj2);
+  }
+});
+
     // Caméra
     this.cameras.main.startFollow(player, true, 0.12, 0.12);
     this.cameras.main.setZoom(2.5);
