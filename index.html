@@ -8,7 +8,19 @@
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
 </head>
 <body>
+  <!-- Intro -->
+  <div id="intro">
+    <div class="intro-card">
+      <h1 class="arcade-title">START GAME</h1>
+      <button id="introStart">COMMENCER</button>
+    </div>
+  </div>
+
+  <!-- Conteneur du jeu -->
   <div id="game"></div>
+
+  <!-- Overlay Title Card (pour les villes) -->
+  <div id="title-card"></div>
 
   <!-- Contrôles mobiles (style GameBoy) -->
   <div id="mobile-controls">
@@ -29,14 +41,8 @@
     </div>
   </div>
 
- <div id="intro">
-  <div class="intro-card">
-    <h1 class="arcade-title">ERASMUS GAME</h1>
-    <button id="introStart">COMMENCER</button>
-  </div>
-</div>
-
-
+  <!-- Script principal -->
   <script src="main.js"></script>
 </body>
 </html>
+
