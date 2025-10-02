@@ -2,135 +2,75 @@ body, html {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: #000;
-  font-family: 'Impact', 'Arial Black', sans-serif;
+  font-family: Arial, sans-serif;
 }
 
-/* Conteneur du jeu */
-#game {
-  width: 100vw;
-  height: 100vh;
-}
-
-/* ===========================
-   INTRO
-=========================== */
+/* --- Intro --- */
 #intro {
   position: fixed;
   inset: 0;
-  background: linear-gradient(to bottom, #00aaff, #0066cc);
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
-  z-index: 99999;
+  align-items: center;
+  z-index: 10000;
 }
-
-.intro-card {
-  text-align: center;
+#intro-bg {
+  position: absolute;
+  inset: 0;
+  background: url("images/bg-sky.png") no-repeat center center;
+  background-size: cover;
+  z-index: -1;
 }
-
-.arcade-title {
-  font-size: 72px;
-  font-weight: 900;
-  color: #ffe92b;
-  text-shadow: 6px 6px 0px #d62828, 10px 10px 0px #000;
-  margin: 0 0 20px;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-}
-
-#introStart {
-  font-size: 22px;
+#intro-title {
+  font-size: 64px;
   font-weight: bold;
-  padding: 12px 24px;
-  border-radius: 10px;
-  border: none;
-  background: #d62828;
-  color: #fff;
-  box-shadow: 0 5px #811717;
-  cursor: pointer;
+  color: #FFD700;
+  text-shadow: 4px 4px #FF0000, 6px 6px #000;
+  margin-bottom: 30px;
 }
-#introStart:active {
-  transform: translateY(3px);
-  box-shadow: 0 2px #811717;
+#introStart {
+  font-size: 28px;
+  padding: 15px 40px;
+  border: none;
+  border-radius: 12px;
+  background: crimson;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 5px #111;
+}
+#intro.fade-out {
+  animation: fadeOut 1s forwards;
+}
+@keyframes fadeOut {
+  to { opacity: 0; visibility: hidden; }
 }
 
-/* ===========================
-   TITLE CARD (Villes)
-=========================== */
+/* --- Title card (Avezzano, etc.) --- */
 #title-card {
   position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 80px;
-  font-weight: 900;
-  color: #ffe92b;
-  text-shadow: 6px 6px 0px #d62828, 10px 10px 0px #000;
-  background: rgba(0,0,0,0.6);
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 64px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 4px 4px 10px #000;
   opacity: 0;
-  z-index: 99998;
-  pointer-events: none;
-  transition: opacity 0.6s ease;
+  transition: opacity 1s;
+  z-index: 9000;
 }
 #title-card.show {
   opacity: 1;
 }
 
-/* ===========================
-   FENÊTRE D’INTERACTION (POI)
-=========================== */
-#interaction-box {
-  position: fixed;
-  top: 0;
-  left: 0;
+/* --- Jeu --- */
+#game {
   width: 100vw;
   height: 100vh;
-  background: rgba(0,0,0,0.85);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 99999;
 }
 
-#interaction-box .interaction-content {
-  background: #222;
-  color: #fff;
-  padding: 20px;
-  border-radius: 12px;
-  max-width: 90%;
-  max-height: 85vh;
-  overflow-y: auto;
-  text-align: center;
-  position: relative;
-}
-
-#interaction-box .interaction-content img {
-  max-width: 100%;
-  max-height: 60vh;
-  margin-top: 10px;
-  border-radius: 8px;
-}
-
-#interaction-box #closeBox {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  font-size: 22px;
-  background: crimson;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  cursor: pointer;
-  box-shadow: 0 3px #111;
-}
-
-/* ===========================
-   CONTRÔLES MOBILES (GameBoy)
-=========================== */
+/* --- Mobile controls --- */
 #mobile-controls {
   position: fixed;
   bottom: 20px;
@@ -142,7 +82,6 @@ body, html {
   pointer-events: none;
 }
 
-/* Croix directionnelle */
 #dpad {
   display: flex;
   flex-direction: column;
@@ -158,7 +97,6 @@ body, html {
   width: 70px;
   height: 70px;
   font-size: 28px;
-  font-weight: bold;
   border-radius: 50%;
   background: #555;
   color: #fff;
@@ -168,7 +106,6 @@ body, html {
   box-shadow: 0 4px #222;
 }
 
-/* Boutons actions (E / Run) */
 #action-buttons {
   display: flex;
   flex-direction: column;
@@ -180,7 +117,6 @@ body, html {
   width: 80px;
   height: 80px;
   font-size: 28px;
-  font-weight: bold;
   border-radius: 50%;
   background: crimson;
   color: #fff;
@@ -188,3 +124,4 @@ body, html {
   pointer-events: auto;
   box-shadow: 0 4px #222;
 }
+
