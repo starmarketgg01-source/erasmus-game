@@ -43,7 +43,7 @@ window.onload = function () {
   // Flags
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-  // Entrées mobiles (via D-pad GameBoy + boutons Run/E)
+  // Entrées mobiles
   const mobileInput = {
     up: false,
     down: false,
@@ -64,7 +64,7 @@ window.onload = function () {
     this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
     this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
-    // --- Sprite joueur (feuille 3x4, frame 144x144)
+    // --- Sprite joueur
     this.load.spritesheet("player", "images/characters/player.png", {
       frameWidth: 144,
       frameHeight: 144
@@ -85,7 +85,7 @@ window.onload = function () {
     const ts3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
     const tilesets = [ts1, ts2, ts3];
 
-    // --- Créer les couches avec collisions
+    // --- Créer toutes les couches
     const collisionLayers = [
       "water",
       "rails",
@@ -97,11 +97,14 @@ window.onload = function () {
     ];
 
     const createdLayers = {};
+
     map.layers.forEach(ld => {
       const name = ld.name;
       if (["lampadaire + bancs + panneaux", "lampadaire_base", "lampadaire_haut"].includes(name)) return;
+
       const layer = map.createLayer(name, tilesets, 0, 0);
       createdLayers[name] = layer;
+
       if (collisionLayers.includes(name)) {
         layer.setCollisionByExclusion([-1]);
       }
@@ -111,7 +114,7 @@ window.onload = function () {
     const decorLayer = map.createLayer("lampadaire + bancs + panneaux", tilesets, 0, 0);
     if (decorLayer) decorLayer.setCollisionByExclusion([-1]);
 
-    // Lampadaire base (passe derrière → pas de collision)
+    // Lampadaire base (joueur passe derrière)
     const lampBaseLayer = map.createLayer("lampadaire_base", tilesets, 0, 0);
     if (lampBaseLayer) lampBaseLayer.setDepth(3000);
 
@@ -180,11 +183,12 @@ window.onload = function () {
     interactionBox.style.display = "none";
     document.body.appendChild(interactionBox);
 
-    // Animations joueur
+    // Animations
     this.anims.create({ key: "down", frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }), frameRate: 5, repeat: -1 });
     this.anims.create({ key: "left", frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }), frameRate: 5, repeat: -1 });
     this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }), frameRate: 5, repeat: -1 });
     this.anims.create({ key: "up", frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }), frameRate: 5, repeat: -1 });
+
     this.anims.create({ key: "idle-down", frames: [{ key: "player", frame: 1 }] });
     this.anims.create({ key: "idle-left", frames: [{ key: "player", frame: 4 }] });
     this.anims.create({ key: "idle-right", frames: [{ key: "player", frame: 7 }] });
@@ -380,4 +384,17 @@ window.onload = function () {
       eBtn.addEventListener("mousedown", tap);
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // INTRO SCREEN
+  // ---------------------------------------------------------------------------
+  document.addEventListener("DOMContentLoaded", () => {
+    const introBtn = document.getElementById("introStart");
+    if (introBtn) {
+      introBtn.onclick = () => {
+        const intro = document.getElementById("intro");
+        intro.classList.add("fade-out");
+      };
+    }
+  });
 };
