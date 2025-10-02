@@ -485,7 +485,7 @@ window.onload = function () {
   }
 
   function showInteraction(poi) {
-  if (!interactionBox) return;
+  console.log("Interaction avec :", poi.title);
 
   document.body.classList.add("overlay-active");
 
@@ -494,7 +494,7 @@ window.onload = function () {
     imgPath = "images/" + imgPath;
   }
 
-  // On insère le contenu d’abord
+  // Injecte le contenu AVANT de binder la croix
   interactionBox.innerHTML = `
     <div class="interaction-content">
       <button id="closeBox" aria-label="Fermer">✖</button>
@@ -503,22 +503,20 @@ window.onload = function () {
       ${imgPath ? `<img src="${imgPath}" alt="${poi.title}">` : ""}
     </div>
   `;
-
-  // Affiche la box
   interactionBox.style.display = "flex";
 
-  // Joue le son d’ouverture
-  try { sfxOpen?.play().catch(()=>{}); } catch(_){}
-
-  // Attache le bouton ✖
+  // Maintenant que le bouton existe, on peut lier l'événement
   const closeBtn = document.getElementById("closeBox");
   if (closeBtn) {
     closeBtn.onclick = () => {
       interactionBox.style.display = "none";
       document.body.classList.remove("overlay-active");
-      try { sfxClose?.play().catch(()=>{}); } catch(_){}
+      try { document.getElementById('sfx-close')?.play(); } catch(_) {}
     };
   }
+
+  // Petit son d'ouverture
+  try { document.getElementById('sfx-open')?.play(); } catch(_) {}
 }
 
   // ===================================================================
