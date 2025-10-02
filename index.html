@@ -10,17 +10,14 @@
 <body>
   <!-- Intro -->
   <div id="intro">
-    <h1 id="intro-title">ERASMUS GAME</h1>
+    <h1 id="gameTitle">ERASMUS GAME</h1>
     <button id="introStart">COMMENCER</button>
   </div>
 
-  <!-- Conteneur du jeu -->
+  <!-- Jeu -->
   <div id="game"></div>
 
-  <!-- Texte pour les noms de ville -->
-  <div id="city-name"></div>
-
-  <!-- Contrôles mobiles -->
+  <!-- Contrôles mobiles (D-pad + boutons E/Run) -->
   <div id="mobile-controls">
     <div id="dpad">
       <button id="btn-up" class="dpad-btn">▲</button>
@@ -31,18 +28,27 @@
       <button id="btn-down" class="dpad-btn">▼</button>
     </div>
     <div id="action-buttons">
-      <button id="btn-interact" class="action-btn red">E</button>
-      <button id="btn-run" class="action-btn red">🏃</button>
+      <button id="btn-interact" class="action-btn">E</button>
+      <button id="btn-run" class="action-btn">🏃</button>
     </div>
   </div>
 
-  <!-- Audio -->
-  <audio id="bgm" src="audio/bgm.mp3" loop></audio>
-  <audio id="sfx-open" src="audio/open.mp3"></audio>
-  <audio id="sfx-close" src="audio/close.mp3"></audio>
+  <!-- Fenêtre d’interaction POI -->
+  <div id="interaction-box">
+    <div class="interaction-content">
+      <button id="closeBox">✖</button>
+      <h2 id="poi-title"></h2>
+      <p id="poi-text"></p>
+      <img id="poi-img" src="" alt="" style="display:none;">
+    </div>
+  </div>
+
+  <!-- Animation nom de ville -->
+  <div id="city-banner"></div>
 
   <script src="main.js"></script>
 </body>
 </html>
+
 
 
