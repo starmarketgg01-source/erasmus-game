@@ -17,13 +17,16 @@ window.onload = function () {
   let map;
   let player;
   let cursors, shiftKey, interactionKey;
-  let joystick, interactBtn, runBtn;        // mobile
-  let poiData = [];                          // POI from Tiled object layer
+  let poiData = [];
   let currentPOI = null;
-  let interactionBox;                        // DOM modal
-  let minimapCam, playerMiniArrow;           // minimap
-  let dustEmitter;                           // dust effect when running
+  let interactionBox;
+  let minimapCam, playerMiniArrow;
+  let dustEmitter;
+
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  // Mobile buttons state
+  let mobileInput = { up: false, down: false, left: false, right: false, run: false };
 
   // --------------------------------
   // PRELOAD
@@ -31,13 +34,13 @@ window.onload = function () {
   function preload() {
     console.log("Preload…");
 
-    // Map + tilesets (respect naming)
+    // Map + tilesets
     this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
     this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
     this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
     this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
-    // Player spritesheet 3x4, frame 144x144
+    // Player spritesheet 3x4
     this.load.spritesheet("player", "images/characters/player.png", {
       frameWidth: 144,
       frameHeight: 144
@@ -50,14 +53,13 @@ window.onload = function () {
   function create() {
     console.log("Create…");
 
-    // --- Map & tilesets ---
+    // Map
     map = this.make.tilemap({ key: "map" });
     const ts1 = map.addTilesetImage("tileset_part1.png", "tileset_part1");
     const ts2 = map.addTilesetImage("tileset_part2.png", "tileset_part2");
     const ts3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
     const tilesets = [ts1, ts2, ts3];
 
-    // --- Layers creation (without player colliders yet) ---
     const collisionLayersNames = [
       "water",
       "rails",
@@ -79,32 +81,29 @@ window.onload = function () {
       }
     });
 
-    // Décor avec collisions
     const decorLayer = map.createLayer("lampadaire + bancs + panneaux", tilesets, 0, 0);
     if (decorLayer) decorLayer.setCollisionByExclusion([-1]);
 
-    // Lampadaire base (⚠️ pas de collisions, joueur passe derrière)
+    // Lampadaire base : PAS de collision → joueur passe derrière
     const lampBaseLayer = map.createLayer("lampadaire_base", tilesets, 0, 0);
-    if (lampBaseLayer) lampBaseLayer.setDepth(5000);
 
-    // Lampadaire haut (toujours devant)
     const lampTopLayer = map.createLayer("lampadaire_haut", tilesets, 0, 0);
     if (lampTopLayer) lampTopLayer.setDepth(9999);
 
-    // --- Spawn + POI from object layer ---
+    // Spawn joueur et POI
     const objLayer = map.getObjectLayer("POI");
     if (objLayer) {
       objLayer.objects.forEach(obj => {
         if (obj.name === "spawn_avezzano") {
           player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
           player.setOrigin(0.5, 1);
-          player.setScale(0.20); // style Pokémon
+          player.setScale(0.20);
           player.setCollideWorldBounds(true);
         } else {
           poiData.push({
             x: obj.x,
             y: obj.y,
-            title: obj.properties?.find(p => p.name === "title")?.value || obj.name || "Point d'intérêt",
+            title: obj.properties?.find(p => p.name === "title")?.value || obj.name,
             description: obj.properties?.find(p => p.name === "text")?.value || "Aucune description disponible.",
             image: obj.properties?.find(p => p.name === "media")?.value || null
           });
@@ -112,30 +111,29 @@ window.onload = function () {
       });
     }
 
-    // --- Add collisions with player now ---
+    // Collisions
     Object.entries(createdLayers).forEach(([name, layer]) => {
       if (collisionLayersNames.includes(name)) {
         this.physics.add.collider(player, layer);
+        console.log("Collision ON:", name);
       }
     });
     if (decorLayer) this.physics.add.collider(player, decorLayer);
 
-    // --- Camera ---
+    // Caméra
     this.cameras.main.startFollow(player, true, 0.12, 0.12);
     this.cameras.main.setZoom(2.5);
 
-    // --- Mini map ---
+    // Mini map
     const miniW = 220, miniH = 160, miniZoom = 0.22;
     minimapCam = this.cameras.add(window.innerWidth - miniW - 12, 12, miniW, miniH);
     minimapCam.setZoom(miniZoom).startFollow(player);
 
-    // mini-map frame
     const miniBg = this.add.graphics();
     miniBg.fillStyle(0x000000, 0.30).fillRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
     miniBg.lineStyle(2, 0xffffff, 1).strokeRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
     miniBg.setScrollFactor(0).setDepth(10000);
 
-    // player arrow on minimap
     playerMiniArrow = this.add.triangle(
       minimapCam.x + miniW / 2,
       minimapCam.y + miniH / 2,
@@ -143,24 +141,24 @@ window.onload = function () {
       0xff0000
     ).setScrollFactor(0).setDepth(10001);
 
-    // --- Controls ---
+    // Controls
     cursors = this.input.keyboard.createCursorKeys();
     shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-    // --- Interaction modal (DOM) ---
+    // Interaction modal
     interactionBox = document.createElement("div");
     interactionBox.id = "interaction-box";
     interactionBox.style.display = "none";
     document.body.appendChild(interactionBox);
 
-    // --- Animations ---
-    this.anims.create({ key: "down",  frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }),  frameRate: 5, repeat: -1 });
-    this.anims.create({ key: "left",  frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }),  frameRate: 5, repeat: -1 });
-    this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }),  frameRate: 5, repeat: -1 });
-    this.anims.create({ key: "up",    frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }), frameRate: 5, repeat: -1 });
+    // Animations
+    this.anims.create({ key: "down", frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }), frameRate: 5, repeat: -1 });
+    this.anims.create({ key: "left", frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }), frameRate: 5, repeat: -1 });
+    this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }), frameRate: 5, repeat: -1 });
+    this.anims.create({ key: "up", frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }), frameRate: 5, repeat: -1 });
 
-    // --- Dust particles ---
+    // Dust
     const g = this.make.graphics({ x: 0, y: 0, add: false });
     g.fillStyle(0xffffff, 1).fillCircle(4, 4, 4);
     g.generateTexture("dust", 8, 8);
@@ -176,61 +174,8 @@ window.onload = function () {
     });
     dustEmitter.startFollow(player, 0, -6);
 
-    // --- Mobile UI ---
-    if (isMobile) {
-      // Joystick centré en bas
-      joystick = new rexvirtualjoystickplugin(this, {
-        x: window.innerWidth / 2,
-        y: window.innerHeight - 100,
-        radius: 60,
-        base: this.add.circle(0, 0, 60, 0x666666, 0.5),
-        thumb: this.add.circle(0, 0, 30, 0xcccccc, 0.9)
-      });
-      this.add.existing(joystick);
-
-      // Bouton E
-      interactBtn = document.createElement("div");
-      interactBtn.id = "interactBtn";
-      interactBtn.textContent = "E";
-      Object.assign(interactBtn.style, {
-        position: "absolute",
-        bottom: "100px",
-        right: "18px",
-        width: "64px",
-        height: "64px",
-        background: "rgba(0,0,0,0.6)",
-        color: "#fff",
-        fontSize: "32px",
-        borderRadius: "50%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: "999"
-      });
-      document.body.appendChild(interactBtn);
-      interactBtn.addEventListener("click", () => { if (currentPOI) showInteraction(currentPOI); });
-
-      // Bouton Run
-      runBtn = document.createElement("div");
-      runBtn.id = "runBtn";
-      runBtn.textContent = "🏃";
-      Object.assign(runBtn.style, {
-        position: "absolute",
-        bottom: "100px",
-        left: "18px",
-        width: "64px",
-        height: "64px",
-        background: "rgba(0,0,0,0.6)",
-        color: "#fff",
-        fontSize: "28px",
-        borderRadius: "50%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: "999"
-      });
-      document.body.appendChild(runBtn);
-    }
+    // --- Mobile buttons binding ---
+    bindMobileButtons();
   }
 
   // --------------------------------
@@ -239,44 +184,35 @@ window.onload = function () {
   function update() {
     if (!player) return;
 
-    // Run
-    const isRunning = (shiftKey && shiftKey.isDown) || (isMobile && runBtn && runBtn.dataset.active === "true");
+    const isRunning = (shiftKey && shiftKey.isDown) || mobileInput.run;
     const speed = isRunning ? 150 : 70;
 
-    // Reset velocity
     player.setVelocity(0);
+    let moved = false;
 
-    // PC controls
+    // PC inputs
     if (!isMobile) {
-      if (cursors.left.isDown) { player.setVelocityX(-speed); playAnim("left", isRunning); }
-      else if (cursors.right.isDown) { player.setVelocityX(speed); playAnim("right", isRunning); }
-      else if (cursors.up.isDown) { player.setVelocityY(-speed); playAnim("up", isRunning); }
-      else if (cursors.down.isDown) { player.setVelocityY(speed); playAnim("down", isRunning); }
-      else player.anims.stop();
+      if (cursors.left.isDown) { player.setVelocityX(-speed); playAnim("left", isRunning); moved = true; }
+      else if (cursors.right.isDown) { player.setVelocityX(speed); playAnim("right", isRunning); moved = true; }
+      if (cursors.up.isDown) { player.setVelocityY(-speed); playAnim("up", isRunning); moved = true; }
+      else if (cursors.down.isDown) { player.setVelocityY(speed); playAnim("down", isRunning); moved = true; }
+      if (!moved) player.anims.stop();
     }
 
-    // Mobile controls
-    if (isMobile && joystick) {
-      const f = joystick.force, angle = joystick.angle;
-      if (f > 0) {
-        const rad = Phaser.Math.DegToRad(angle);
-        player.setVelocityX(Math.cos(rad) * speed * f);
-        player.setVelocityY(Math.sin(rad) * speed * f);
-
-        if (angle >= -45 && angle <= 45) playAnim("right", isRunning);
-        else if (angle >= 135 || angle <= -135) playAnim("left", isRunning);
-        else if (angle > 45 && angle < 135) playAnim("down", isRunning);
-        else playAnim("up", isRunning);
-      } else player.anims.stop();
+    // Mobile inputs
+    if (isMobile) {
+      if (mobileInput.left) { player.setVelocityX(-speed); playAnim("left", isRunning); moved = true; }
+      else if (mobileInput.right) { player.setVelocityX(speed); playAnim("right", isRunning); moved = true; }
+      if (mobileInput.up) { player.setVelocityY(-speed); playAnim("up", isRunning); moved = true; }
+      else if (mobileInput.down) { player.setVelocityY(speed); playAnim("down", isRunning); moved = true; }
+      if (!moved) player.anims.stop();
     }
 
     player.setDepth(player.y);
 
-    // Dust
     const moving = Math.abs(player.body.velocity.x) > 1 || Math.abs(player.body.velocity.y) > 1;
     dustEmitter.on = isRunning && moving;
 
-    // Mini-map
     if (player.anims.currentAnim) {
       const dir = player.anims.currentAnim.key;
       if (dir === "up") playerMiniArrow.rotation = 0;
@@ -287,7 +223,6 @@ window.onload = function () {
     playerMiniArrow.x = minimapCam.worldView.x + player.x * minimapCam.zoom;
     playerMiniArrow.y = minimapCam.worldView.y + player.y * minimapCam.zoom;
 
-    // POI interaction
     currentPOI = null;
     for (let poi of poiData) {
       const d = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
@@ -299,9 +234,7 @@ window.onload = function () {
     }
   }
 
-  // --------------------------------
   // Helpers
-  // --------------------------------
   function playAnim(key, isRunning) {
     if (player.anims.currentAnim?.key !== key) {
       player.anims.play(key, true);
@@ -323,8 +256,7 @@ window.onload = function () {
         color: "#fff",
         padding: "6px 12px",
         borderRadius: "6px",
-        zIndex: "9999",
-        fontFamily: "system-ui, sans-serif"
+        zIndex: "9999"
       });
       document.body.appendChild(e);
     }
@@ -352,6 +284,28 @@ window.onload = function () {
       interactionBox.style.display = "none";
       document.body.classList.remove("overlay-active");
     };
+  }
+
+  // --- Bind mobile buttons ---
+  function bindMobileButtons() {
+    function bindBtn(id, key) {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.addEventListener("touchstart", () => { mobileInput[key] = true; });
+      btn.addEventListener("touchend", () => { mobileInput[key] = false; });
+    }
+    bindBtn("btn-up", "up");
+    bindBtn("btn-down", "down");
+    bindBtn("btn-left", "left");
+    bindBtn("btn-right", "right");
+    bindBtn("btn-run", "run");
+
+    const btnInteract = document.getElementById("btn-interact");
+    if (btnInteract) {
+      btnInteract.addEventListener("touchstart", () => {
+        if (currentPOI) showInteraction(currentPOI);
+      });
+    }
   }
 };
 
