@@ -10,15 +10,16 @@
 <body>
   <!-- Intro écran -->
   <div id="intro">
-    <h1 id="intro-title">ERASMUS GAME</h1>
-    <button id="introStart">Commencer</button>
+    <h1>ERASMUS GAME</h1>
+    <button id="introStart">COMMENCER</button>
   </div>
 
-  <!-- Jeu -->
+  <!-- Conteneur du jeu -->
   <div id="game"></div>
 
   <!-- Contrôles mobiles -->
   <div id="mobile-controls">
+    <!-- Croix directionnelle style GameBoy -->
     <div id="dpad">
       <button id="btn-up" class="dpad-btn">▲</button>
       <div class="dpad-middle">
@@ -27,14 +28,13 @@
       </div>
       <button id="btn-down" class="dpad-btn">▼</button>
     </div>
+
+    <!-- Boutons actions -->
     <div id="action-buttons">
-      <button id="btn-interact" class="action-btn">E</button>
-      <button id="btn-run" class="action-btn">🏃</button>
+      <button id="btn-interact" class="action-btn red">E</button>
+      <button id="btn-run" class="action-btn green">🏃</button>
     </div>
   </div>
-
-  <!-- Title Card -->
-  <div id="title-card"></div>
 
   <script src="main.js"></script>
 </body>
