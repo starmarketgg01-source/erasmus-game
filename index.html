@@ -5,31 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Erasmus Game</title>
   <link rel="stylesheet" href="style.css">
-  <!-- Phaser -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
-  <!-- Plugin Joystick Rex -->
-  <script src="https://cdn.jsdelivr.net/npm/phaser3-rex-plugins/dist/rexvirtualjoystickplugin.min.js"></script>
 </head>
 <body>
-  <!-- Conteneur du jeu -->
   <div id="game"></div>
 
-  <!-- Script principal -->
-  <script src="main.js"></script>
-  
-  <!-- Contrôles mobiles -->
-<div id="mobile-controls">
-  <div class="dpad">
-    <button id="btn-up">▲</button>
-    <button id="btn-down">▼</button>
-    <button id="btn-left">◀</button>
-    <button id="btn-right">▶</button>
+  <!-- Contrôles mobiles (style GameBoy) -->
+  <div id="mobile-controls">
+    <!-- Croix directionnelle -->
+    <div id="dpad">
+      <button id="btn-up" class="dpad-btn">▲</button>
+      <div class="dpad-middle">
+        <button id="btn-left" class="dpad-btn">◀</button>
+        <button id="btn-right" class="dpad-btn">▶</button>
+      </div>
+      <button id="btn-down" class="dpad-btn">▼</button>
+    </div>
+
+    <!-- Boutons à droite -->
+    <div id="action-buttons">
+      <button id="btn-interact" class="action-btn">E</button>
+      <button id="btn-run" class="action-btn">🏃</button>
+    </div>
   </div>
-</div>
 
-<button id="btn-run">🏃</button>
-<button id="btn-interact">E</button>
-
+  <script src="main.js"></script>
 </body>
 </html>
-
