@@ -1,10 +1,7 @@
 // ==================================
-// Erasmus Game - main.js (COMPLET 600+ lignes)
+// Erasmus Game - main.js (COMPLET + villes)
 // ==================================
 window.onload = function () {
-  // -------------------------------
-  // CONFIG
-  // -------------------------------
   const config = {
     type: Phaser.AUTO,
     width: window.innerWidth,
@@ -22,51 +19,32 @@ window.onload = function () {
   // -------------------------------
   // GLOBALS
   // -------------------------------
-  let map;
-  let player;
+  let map, player;
   let cursors, shiftKey, interactionKey;
-
-  // Mini-map
   let minimapCam, playerMiniArrow, miniFrameGfx;
-
-  // Particules (poussière)
   let dustEmitter;
-
-  // POI
   let poiData = [];
   let currentPOI = null;
 
-  // DOM box pour les interactions
+  // DOM
   let interactionBox, poiTitle, poiText, poiImg, closeBox;
-
-  // Ville courante
-  let currentCity = "Avezzano";
-
-  // Flags
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-  // Entrées mobiles (via D-pad GameBoy + boutons Run/E)
-  const mobileInput = {
-    up: false,
-    down: false,
-    left: false,
-    right: false,
-    run: false
-  };
+  const mobileInput = { up: false, down: false, left: false, right: false, run: false };
+
+  // villes
+  let cityZones = [];
+  let currentCity = null;
 
   // ---------------------------------------------------------------------------
   // PRELOAD
   // ---------------------------------------------------------------------------
   function preload() {
-    console.log("[PRELOAD]");
-
-    // --- Carte + tilesets
     this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
     this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
     this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
     this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
-    // --- Sprite joueur
     this.load.spritesheet("player", "images/characters/player.png", {
       frameWidth: 144,
       frameHeight: 144
@@ -77,21 +55,13 @@ window.onload = function () {
   // CREATE
   // ---------------------------------------------------------------------------
   function create() {
-    console.log("[CREATE]");
-
-    // --- Construction de la carte
     map = this.make.tilemap({ key: "map" });
     const ts1 = map.addTilesetImage("tileset_part1.png", "tileset_part1");
     const ts2 = map.addTilesetImage("tileset_part2.png", "tileset_part2");
     const ts3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
     const tilesets = [ts1, ts2, ts3];
 
-    const collisionLayers = [
-      "water", "rails", "bord de map",
-      "vegetation 1", "vegetation 2",
-      "batiments 1", "batiments 2"
-    ];
-
+    const collisionLayers = ["water", "rails", "bord de map", "vegetation 1", "vegetation 2", "batiments 1", "batiments 2"];
     const createdLayers = {};
     map.layers.forEach(ld => {
       const name = ld.name;
@@ -101,7 +71,6 @@ window.onload = function () {
       if (collisionLayers.includes(name)) layer.setCollisionByExclusion([-1]);
     });
 
-    // Décor
     const decorLayer = map.createLayer("lampadaire + bancs + panneaux", tilesets, 0, 0);
     if (decorLayer) decorLayer.setCollisionByExclusion([-1]);
 
@@ -111,7 +80,7 @@ window.onload = function () {
     const lampTopLayer = map.createLayer("lampadaire_haut", tilesets, 0, 0);
     if (lampTopLayer) lampTopLayer.setDepth(9999);
 
-    // --- Spawn + POI
+    // --- Objet layer POI
     const objLayer = map.getObjectLayer("POI");
     if (objLayer) {
       objLayer.objects.forEach(obj => {
@@ -132,7 +101,15 @@ window.onload = function () {
       });
     }
 
-    // Colliders
+    // --- Objet layer VILLE
+    const cityLayer = map.getObjectLayer("VILLE");
+    if (cityLayer) {
+      cityZones = cityLayer.objects.map(obj => ({
+        name: obj.name,
+        x: obj.x, y: obj.y, width: obj.width || 64, height: obj.height || 64
+      }));
+    }
+
     Object.entries(createdLayers).forEach(([name, layer]) => {
       if (collisionLayers.includes(name)) this.physics.add.collider(player, layer);
     });
@@ -148,24 +125,17 @@ window.onload = function () {
     minimapCam.setZoom(miniZoom).startFollow(player);
 
     miniFrameGfx = this.add.graphics();
-    miniFrameGfx.fillStyle(0x000000, 0.30)
-      .fillRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
-    miniFrameGfx.lineStyle(2, 0xffffff, 1)
-      .strokeRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
+    miniFrameGfx.fillStyle(0x000000, 0.30).fillRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
+    miniFrameGfx.lineStyle(2, 0xffffff, 1).strokeRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
     miniFrameGfx.setScrollFactor(0).setDepth(11000);
 
-    playerMiniArrow = this.add.triangle(
-      minimapCam.x + miniW / 2, minimapCam.y + miniH / 2,
-      0, 12, 12, 12, 6, 0,
-      0xff0000
-    ).setScrollFactor(0).setDepth(11001);
+    playerMiniArrow = this.add.triangle(minimapCam.x + miniW / 2, minimapCam.y + miniH / 2, 0, 12, 12, 12, 6, 0, 0xff0000)
+      .setScrollFactor(0).setDepth(11001);
 
-    // Contrôles
     cursors = this.input.keyboard.createCursorKeys();
     shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-    // Interaction box (DOM)
     interactionBox = document.getElementById("interaction-box");
     poiTitle = document.getElementById("poi-title");
     poiText = document.getElementById("poi-text");
@@ -178,12 +148,10 @@ window.onload = function () {
       };
     }
 
-    // Animations joueur
     this.anims.create({ key: "down", frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }), frameRate: 5, repeat: -1 });
     this.anims.create({ key: "left", frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }), frameRate: 5, repeat: -1 });
     this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }), frameRate: 5, repeat: -1 });
     this.anims.create({ key: "up", frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }), frameRate: 5, repeat: -1 });
-
     this.anims.create({ key: "idle-down", frames: [{ key: "player", frame: 1 }] });
     this.anims.create({ key: "idle-left", frames: [{ key: "player", frame: 4 }] });
     this.anims.create({ key: "idle-right", frames: [{ key: "player", frame: 7 }] });
@@ -205,15 +173,14 @@ window.onload = function () {
     });
     dustEmitter.startFollow(player, 0, -6);
 
-    // Contrôles mobiles
     bindMobileControls();
 
-    // Intro bouton
     const introBtn = document.getElementById("introStart");
     if (introBtn) {
       introBtn.onclick = () => {
         document.getElementById("intro").style.display = "none";
-        showCityBanner(currentCity);
+        showCityBanner("Avezzano");
+        currentCity = "Avezzano";
       };
     }
   }
@@ -248,7 +215,6 @@ window.onload = function () {
     else if (vy < 0) playAnim("up", isRunning);
     else if (vy > 0) playAnim("down", isRunning);
     else {
-      player.setVelocity(0);
       if (player.anims.currentAnim) {
         const dir = player.anims.currentAnim.key;
         if (["up", "down", "left", "right"].includes(dir)) {
@@ -261,15 +227,20 @@ window.onload = function () {
     const moving = Math.abs(vx) > 1 || Math.abs(vy) > 1;
     dustEmitter.on = isRunning && moving;
 
-    if (player.anims.currentAnim) {
-      const dir = player.anims.currentAnim.key;
-      if (dir.includes("up")) playerMiniArrow.rotation = 0;
-      else if (dir.includes("right")) playerMiniArrow.rotation = Phaser.Math.DegToRad(90);
-      else if (dir.includes("down")) playerMiniArrow.rotation = Phaser.Math.DegToRad(180);
-      else if (dir.includes("left")) playerMiniArrow.rotation = Phaser.Math.DegToRad(-90);
+    // villes
+    for (let city of cityZones) {
+      if (
+        player.x > city.x &&
+        player.x < city.x + city.width &&
+        player.y > city.y &&
+        player.y < city.y + city.height
+      ) {
+        if (currentCity !== city.name) {
+          currentCity = city.name;
+          showCityBanner(city.name);
+        }
+      }
     }
-    playerMiniArrow.x = minimapCam.worldView.x + player.x * minimapCam.zoom;
-    playerMiniArrow.y = minimapCam.worldView.y + player.y * minimapCam.zoom;
 
     // POI
     currentPOI = null;
@@ -314,15 +285,12 @@ window.onload = function () {
   function hidePressE() { const e = document.getElementById("pressE"); if (e) e.remove(); }
 
   function showInteraction(poi) {
-    if (!interactionBox) return;
     poiTitle.textContent = poi.title;
     poiText.textContent = poi.description;
     if (poi.image) {
       poiImg.src = poi.image;
       poiImg.style.display = "block";
-    } else {
-      poiImg.style.display = "none";
-    }
+    } else poiImg.style.display = "none";
     interactionBox.style.display = "flex";
   }
 
@@ -351,7 +319,6 @@ window.onload = function () {
       el.addEventListener("mouseup", end);
       el.addEventListener("mouseleave", end);
     };
-
     bindButton("btn-up",    () => mobileInput.up = true,    () => mobileInput.up = false);
     bindButton("btn-down",  () => mobileInput.down = true,  () => mobileInput.down = false);
     bindButton("btn-left",  () => mobileInput.left = true,  () => mobileInput.left = false);
