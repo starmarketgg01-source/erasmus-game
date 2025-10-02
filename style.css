@@ -19,14 +19,17 @@ body, html {
 }
 
 #intro-title {
-  font-size: 72px;
-  font-weight: bold;
+  font-size: clamp(42px, 8vw, 84px);
+  font-weight: 900;
+  margin: 0 0 24px 0;
+  color: #FFD700; /* Jaune arcade */
+  text-shadow:
+    3px 3px 0 #000,        /* contour noir */
+    -2px -2px 0 #fff,      /* léger contour blanc */
+    0 0 18px rgba(0,0,0,.35);
+  letter-spacing: 3px;
   text-align: center;
-  color: #1DB954; /* vert Italie */
-  text-shadow: 
-    4px 4px 0px #FF0000,  /* ombre rouge */
-    -4px -4px 0px #FFFFFF; /* ombre blanche */
-  margin-bottom: 40px;
+  text-transform: uppercase;
 }
 
 #introStart {
