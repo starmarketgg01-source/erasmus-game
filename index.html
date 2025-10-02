@@ -1,54 +1,59 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Mon Jeu</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Erasmus Game</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
 </head>
 <body>
-  <div id="game"></div>
-
-  <!-- Intro -->
+  <!-- Intro screen -->
   <div id="intro">
-    <h1>Bienvenue dans le jeu</h1>
-    <button id="startBtn">Commencer</button>
+    <h1>ERASMUS GAME</h1>
+    <button id="introStart">COMMENCER</button>
   </div>
 
-  <!-- Bannière de ville -->
+  <!-- Conteneur du jeu -->
+  <div id="game"></div>
+
+  <!-- Bannière des villes -->
   <div id="city-banner"></div>
 
-  <!-- Transition noire -->
+  <!-- Overlay pour fondu noir -->
   <div id="fade-overlay"></div>
 
-  <!-- Interaction box -->
-  <div id="interaction-box"></div>
+  <!-- Boîte d'interaction (peuplée dynamiquement si besoin) -->
+  <div id="interaction-box" style="display:none;"></div>
 
-  <!-- Mobile controls -->
+  <!-- Contrôles mobiles (D-pad en croix + actions) -->
   <div id="mobile-controls">
+    <!-- Croix directionnelle -->
     <div id="dpad">
       <button id="btn-up" class="dpad-btn">▲</button>
-      <button id="btn-left" class="dpad-btn">◀</button>
-      <button id="btn-right" class="dpad-btn">▶</button>
+      <div class="dpad-middle">
+        <button id="btn-left" class="dpad-btn">◀</button>
+        <button id="btn-right" class="dpad-btn">▶</button>
+      </div>
       <button id="btn-down" class="dpad-btn">▼</button>
     </div>
+
+    <!-- Boutons actions -->
     <div id="action-buttons">
-      <button id="btn-interact" class="action-btn">E</button>
-      <button id="btn-run" class="action-btn">RUN</button>
+      <button id="btn-interact" class="action-btn red">E</button>
+      <button id="btn-run" class="action-btn green">🏃</button>
     </div>
   </div>
 
   <!-- Sons -->
-  <audio id="bgm" src="audio/bgm.mp3" loop></audio>
-  <audio id="sfx-open" src="audio/open.mp3"></audio>
-  <audio id="sfx-close" src="audio/close.mp3"></audio>
+  <audio id="bgm" src="audio/bgm.mp3" loop preload="auto"></audio>
+  <audio id="sfx-open" src="audio/open.mp3" preload="auto"></audio>
+  <audio id="sfx-close" src="audio/close.mp3" preload="auto"></audio>
 
   <!-- Script principal -->
   <script src="main.js"></script>
 </body>
 </html>
-
 
 
 
