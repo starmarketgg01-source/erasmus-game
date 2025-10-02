@@ -107,3 +107,55 @@ body, html {
 }
 
 .action-btn.red { background: red; color: white; }
+
+/* --- Fenêtre d’interaction (POI) --- */
+#interaction-box {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+}
+
+#interaction-box .interaction-content {
+  background: #222;
+  color: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  max-width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  text-align: center;
+  position: relative;
+}
+
+/* --- Image dans POI --- */
+#interaction-box .interaction-content img {
+  max-width: 100%;
+  max-height: 60vh;
+  margin-top: 10px;
+  border-radius: 8px;
+}
+
+/* --- Bouton fermer (croix ✖) --- */
+#interaction-box #closeBox {
+  position: absolute;
+  top: -15px;
+  right: -15px;
+  font-size: 28px;
+  background: crimson;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  cursor: pointer;
+  box-shadow: 0 3px #111;
+  z-index: 100000;
+}
+
