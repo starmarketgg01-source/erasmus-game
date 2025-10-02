@@ -485,37 +485,41 @@ window.onload = function () {
   }
 
   function showInteraction(poi) {
-    document.body.classList.add("overlay-active");
+  if (!interactionBox) return;
 
-    let imgPath = poi.image;
-    if (imgPath && !imgPath.startsWith("images/")) {
-      imgPath = "images/" + imgPath;
-    }
+  document.body.classList.add("overlay-active");
 
-    // contenu
-    interactionBox.innerHTML = `
-      <div class="interaction-content">
-        <button id="closeBox" aria-label="Fermer">✖</button>
-        <h2>${poi.title}</h2>
-        <p>${poi.description}</p>
-        ${imgPath ? `<img src="${imgPath}" alt="${poi.title}">` : ""}
-      </div>
-    `;
-    interactionBox.style.display = "flex";
-
-    // sons
-    try { sfxOpen?.play().catch(()=>{}); } catch(_){}
-
-    // bouton fermer
-    const closeBtn = document.getElementById("closeBox");
-    if (closeBtn) {
-      closeBtn.onclick = () => {
-        interactionBox.style.display = "none";
-        document.body.classList.remove("overlay-active");
-        try { sfxClose?.play().catch(()=>{}); } catch(_){}
-      };
-    }
+  let imgPath = poi.image;
+  if (imgPath && !imgPath.startsWith("images/")) {
+    imgPath = "images/" + imgPath;
   }
+
+  // On insère le contenu d’abord
+  interactionBox.innerHTML = `
+    <div class="interaction-content">
+      <button id="closeBox" aria-label="Fermer">✖</button>
+      <h2>${poi.title}</h2>
+      <p>${poi.description}</p>
+      ${imgPath ? `<img src="${imgPath}" alt="${poi.title}">` : ""}
+    </div>
+  `;
+
+  // Affiche la box
+  interactionBox.style.display = "flex";
+
+  // Joue le son d’ouverture
+  try { sfxOpen?.play().catch(()=>{}); } catch(_){}
+
+  // Attache le bouton ✖
+  const closeBtn = document.getElementById("closeBox");
+  if (closeBtn) {
+    closeBtn.onclick = () => {
+      interactionBox.style.display = "none";
+      document.body.classList.remove("overlay-active");
+      try { sfxClose?.play().catch(()=>{}); } catch(_){}
+    };
+  }
+}
 
   // ===================================================================
   // MOBILE CONTROLS (D-pad + Run + E)
