@@ -16,8 +16,8 @@ body, html {
   position: fixed;
   top: 0;
   left: 0;
-  width: 75vw;
-  height: 75vh;
+  width: 100vw;
+  height: 100vh;
   background: rgba(0,0,0,0.85);
   display: none;
   align-items: center;
@@ -30,13 +30,13 @@ body, html {
   color: #fff;
   padding: 20px;
   border-radius: 12px;
-  max-width: 70%;
+  max-width: 90%;
   text-align: center;
   position: relative;
 }
 
 #interaction-box .interaction-content img {
-  max-width: 70%;
+  max-width: 100%;
   margin-top: 10px;
   border-radius: 8px;
 }
@@ -51,8 +51,8 @@ body, html {
   color: white;
   border: none;
   border-radius: 50%;
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
   cursor: pointer;
   box-shadow: 0 3px #111;
   z-index: 100000; /* au-dessus de tout */
