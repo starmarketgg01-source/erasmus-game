@@ -1,5 +1,5 @@
 // ==================================
-// Erasmus Game - main.js (COMPLET)
+// Erasmus Game - main.js (COMPLET) - CORRIGÉ
 // ==================================
 window.onload = function () {
   // -------------------------------
@@ -141,10 +141,16 @@ window.onload = function () {
     minimapCam = this.cameras.add(window.innerWidth - miniW - 12, 12, miniW, miniH);
     minimapCam.setZoom(miniZoom).startFollow(player);
 
-    miniFrameGfx = this.add.graphics();
-    miniFrameGfx.fillStyle(0x000000, 0.30).fillRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
-    miniFrameGfx.lineStyle(2, 0xffffff, 1).strokeRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
-    miniFrameGfx.setScrollFactor(0).setDepth(11000);
+    // === FIX : n'afficher le cadre/fill de la mini-map QUE si on n'est PAS sur mobile
+    // Ça supprime le "carré semi-transparent" gênant sur mobile qui suivait la map.
+    if (!isMobile) {
+      miniFrameGfx = this.add.graphics();
+      miniFrameGfx.fillStyle(0x000000, 0.30).fillRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
+      miniFrameGfx.lineStyle(2, 0xffffff, 1).strokeRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
+      miniFrameGfx.setScrollFactor(0).setDepth(11000);
+    } else {
+      miniFrameGfx = null;
+    }
 
     playerMiniArrow = this.add.triangle(
       minimapCam.x + miniW / 2,
@@ -158,11 +164,17 @@ window.onload = function () {
     shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-    // Interaction box
-    interactionBox = document.createElement("div");
-    interactionBox.id = "interaction-box";
-    interactionBox.style.display = "none";
-    document.body.appendChild(interactionBox);
+    // Interaction box — si il existe déjà dans le DOM on le réutilise,
+    // sinon on le crée (pour éviter doublons si tu as mis la div en HTML).
+    interactionBox = document.getElementById("interaction-box");
+    if (!interactionBox) {
+      interactionBox = document.createElement("div");
+      interactionBox.id = "interaction-box";
+      interactionBox.style.display = "none";
+      document.body.appendChild(interactionBox);
+    } else {
+      interactionBox.style.display = "none";
+    }
 
     // Animations joueur
     this.anims.create({ key: "down", frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }), frameRate: 5, repeat: -1 });
@@ -249,8 +261,11 @@ window.onload = function () {
       else if (dir.includes("down")) playerMiniArrow.rotation = Phaser.Math.DegToRad(180);
       else if (dir.includes("left")) playerMiniArrow.rotation = Phaser.Math.DegToRad(-90);
     }
-    playerMiniArrow.x = minimapCam.worldView.x + player.x * minimapCam.zoom;
-    playerMiniArrow.y = minimapCam.worldView.y + player.y * minimapCam.zoom;
+    // Update position of mini arrow relative to minimap camera
+    if (minimapCam) {
+      playerMiniArrow.x = minimapCam.worldView.x + player.x * minimapCam.zoom;
+      playerMiniArrow.y = minimapCam.worldView.y + player.y * minimapCam.zoom;
+    }
 
     // POI
     currentPOI = null;
@@ -342,18 +357,22 @@ window.onload = function () {
       document.body.appendChild(overlay);
     }
 
+    // Active overlay (fondu)
     overlay.classList.add("active");
 
+    // Après le fondu, affiche la bannière, puis retire overlay
     setTimeout(() => {
       banner.innerText = name;
       banner.classList.add("show");
 
+      // retire l'overlay (il se fade via CSS)
       overlay.classList.remove("active");
 
+      // cache la bannière après 4s
       setTimeout(() => {
         banner.classList.remove("show");
       }, 4000);
-    }, 420);
+    }, 420); // timing cohérent avec la transition CSS
   }
 
   // ---------------------------------------------------------------------------
