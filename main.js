@@ -72,7 +72,7 @@ window.onload = function () {
     const ts3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
     const tilesets = [ts1, ts2, ts3];
 
-    const collisionLayers = ["water","rails","bord de map","vegetation 1","vegetation 2","batiments 1","batiments 2"];
+    const collisionLayers = ["rails","bord de map","vegetation 1","vegetation 2","batiments 1","batiments 2"];
     const createdLayers = {};
 
     map.layers.forEach(ld => {
