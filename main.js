@@ -17,8 +17,7 @@ window.onload = function () {
   let map;
   let player;
   let cursors, shiftKey, interactionKey;
-  let joystick, interactBtn, runBtn;         // mobile
-  let isRunningMobile = false;               // état bouton courir
+  let joystick, interactBtn, runBtn;        // mobile
   let poiData = [];                          // POI from Tiled object layer
   let currentPOI = null;
   let interactionBox;                        // DOM modal
@@ -32,26 +31,17 @@ window.onload = function () {
   function preload() {
     console.log("Preload…");
 
-    // Map + tilesets
+    // Map + tilesets (respect naming)
     this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
     this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
     this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
     this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
-    // Player spritesheet (3x4)
+    // Player spritesheet 3x4, frame 144x144
     this.load.spritesheet("player", "images/characters/player.png", {
       frameWidth: 144,
       frameHeight: 144
     });
-
-    // Mobile joystick plugin
-    if (isMobile) {
-      this.load.plugin(
-        "rexVirtualJoystick",
-        "https://cdn.jsdelivr.net/npm/phaser3-rex-plugins/dist/rexvirtualjoystickplugin.min.js",
-        true
-      );
-    }
   }
 
   // --------------------------------
@@ -60,14 +50,14 @@ window.onload = function () {
   function create() {
     console.log("Create…");
 
-    // Map & tilesets
+    // --- Map & tilesets ---
     map = this.make.tilemap({ key: "map" });
     const ts1 = map.addTilesetImage("tileset_part1.png", "tileset_part1");
     const ts2 = map.addTilesetImage("tileset_part2.png", "tileset_part2");
     const ts3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
     const tilesets = [ts1, ts2, ts3];
 
-    // Collision layers
+    // --- Layers creation (without player colliders yet) ---
     const collisionLayersNames = [
       "water",
       "rails",
@@ -89,22 +79,26 @@ window.onload = function () {
       }
     });
 
-    // Décor
+    // Décor avec collisions
     const decorLayer = map.createLayer("lampadaire + bancs + panneaux", tilesets, 0, 0);
     if (decorLayer) decorLayer.setCollisionByExclusion([-1]);
+
+    // Lampadaire base (⚠️ pas de collisions, joueur passe derrière)
     const lampBaseLayer = map.createLayer("lampadaire_base", tilesets, 0, 0);
-    // ❌ PAS DE COLLISION → joueur passe derrière
+    if (lampBaseLayer) lampBaseLayer.setDepth(5000);
+
+    // Lampadaire haut (toujours devant)
     const lampTopLayer = map.createLayer("lampadaire_haut", tilesets, 0, 0);
     if (lampTopLayer) lampTopLayer.setDepth(9999);
 
-    // Spawn + POI
+    // --- Spawn + POI from object layer ---
     const objLayer = map.getObjectLayer("POI");
     if (objLayer) {
       objLayer.objects.forEach(obj => {
         if (obj.name === "spawn_avezzano") {
           player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
           player.setOrigin(0.5, 1);
-          player.setScale(0.20);
+          player.setScale(0.20); // style Pokémon
           player.setCollideWorldBounds(true);
         } else {
           poiData.push({
@@ -118,7 +112,7 @@ window.onload = function () {
       });
     }
 
-    // Collisions avec le joueur
+    // --- Add collisions with player now ---
     Object.entries(createdLayers).forEach(([name, layer]) => {
       if (collisionLayersNames.includes(name)) {
         this.physics.add.collider(player, layer);
@@ -126,22 +120,22 @@ window.onload = function () {
     });
     if (decorLayer) this.physics.add.collider(player, decorLayer);
 
-    // Caméra
+    // --- Camera ---
     this.cameras.main.startFollow(player, true, 0.12, 0.12);
     this.cameras.main.setZoom(2.5);
 
-    // Minimap
+    // --- Mini map ---
     const miniW = 220, miniH = 160, miniZoom = 0.22;
     minimapCam = this.cameras.add(window.innerWidth - miniW - 12, 12, miniW, miniH);
     minimapCam.setZoom(miniZoom).startFollow(player);
 
-    // Mini-map frame
+    // mini-map frame
     const miniBg = this.add.graphics();
-    miniBg.fillStyle(0x000000, 0.3).fillRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
+    miniBg.fillStyle(0x000000, 0.30).fillRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
     miniBg.lineStyle(2, 0xffffff, 1).strokeRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
     miniBg.setScrollFactor(0).setDepth(10000);
 
-    // Arrow
+    // player arrow on minimap
     playerMiniArrow = this.add.triangle(
       minimapCam.x + miniW / 2,
       minimapCam.y + miniH / 2,
@@ -149,24 +143,24 @@ window.onload = function () {
       0xff0000
     ).setScrollFactor(0).setDepth(10001);
 
-    // Controls
+    // --- Controls ---
     cursors = this.input.keyboard.createCursorKeys();
     shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-    // Interaction box
+    // --- Interaction modal (DOM) ---
     interactionBox = document.createElement("div");
     interactionBox.id = "interaction-box";
     interactionBox.style.display = "none";
     document.body.appendChild(interactionBox);
 
-    // Animations
-    this.anims.create({ key: "down",  frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }), frameRate: 5, repeat: -1 });
-    this.anims.create({ key: "left",  frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }), frameRate: 5, repeat: -1 });
-    this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }), frameRate: 5, repeat: -1 });
+    // --- Animations ---
+    this.anims.create({ key: "down",  frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }),  frameRate: 5, repeat: -1 });
+    this.anims.create({ key: "left",  frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }),  frameRate: 5, repeat: -1 });
+    this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }),  frameRate: 5, repeat: -1 });
     this.anims.create({ key: "up",    frames: this.anims.generateFrameNumbers("player", { start: 9, end: 11 }), frameRate: 5, repeat: -1 });
 
-    // Dust
+    // --- Dust particles ---
     const g = this.make.graphics({ x: 0, y: 0, add: false });
     g.fillStyle(0xffffff, 1).fillCircle(4, 4, 4);
     g.generateTexture("dust", 8, 8);
@@ -182,43 +176,60 @@ window.onload = function () {
     });
     dustEmitter.startFollow(player, 0, -6);
 
-    // Mobile UI
+    // --- Mobile UI ---
     if (isMobile) {
-      // ✅ Joystick centré bas
-      joystick = this.plugins.get("rexVirtualJoystick").add(this, {
+      // Joystick centré en bas
+      joystick = new rexvirtualjoystickplugin(this, {
         x: window.innerWidth / 2,
-        y: window.innerHeight - 120,
-        radius: 70,
-        base: this.add.circle(0, 0, 70, 0x666666, 0.5),
-        thumb: this.add.circle(0, 0, 35, 0xcccccc, 0.9)
+        y: window.innerHeight - 100,
+        radius: 60,
+        base: this.add.circle(0, 0, 60, 0x666666, 0.5),
+        thumb: this.add.circle(0, 0, 30, 0xcccccc, 0.9)
       });
+      this.add.existing(joystick);
 
-      // ✅ Bouton E
+      // Bouton E
       interactBtn = document.createElement("div");
       interactBtn.id = "interactBtn";
-      interactBtn.innerText = "E";
+      interactBtn.textContent = "E";
       Object.assign(interactBtn.style, {
-        position: "absolute", bottom: "100px", right: "20px",
-        width: "60px", height: "60px", background: "rgba(0,0,0,0.6)",
-        color: "#fff", fontSize: "28px", borderRadius: "50%",
-        display: "flex", alignItems: "center", justifyContent: "center", zIndex: "999"
+        position: "absolute",
+        bottom: "100px",
+        right: "18px",
+        width: "64px",
+        height: "64px",
+        background: "rgba(0,0,0,0.6)",
+        color: "#fff",
+        fontSize: "32px",
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: "999"
       });
       document.body.appendChild(interactBtn);
       interactBtn.addEventListener("click", () => { if (currentPOI) showInteraction(currentPOI); });
 
-      // ✅ Bouton courir
+      // Bouton Run
       runBtn = document.createElement("div");
       runBtn.id = "runBtn";
-      runBtn.innerText = "🏃";
+      runBtn.textContent = "🏃";
       Object.assign(runBtn.style, {
-        position: "absolute", bottom: "100px", left: "20px",
-        width: "60px", height: "60px", background: "rgba(0,0,0,0.6)",
-        color: "#fff", fontSize: "28px", borderRadius: "50%",
-        display: "flex", alignItems: "center", justifyContent: "center", zIndex: "999"
+        position: "absolute",
+        bottom: "100px",
+        left: "18px",
+        width: "64px",
+        height: "64px",
+        background: "rgba(0,0,0,0.6)",
+        color: "#fff",
+        fontSize: "28px",
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: "999"
       });
       document.body.appendChild(runBtn);
-      runBtn.addEventListener("touchstart", () => { isRunningMobile = true; });
-      runBtn.addEventListener("touchend", () => { isRunningMobile = false; });
     }
   }
 
@@ -228,52 +239,55 @@ window.onload = function () {
   function update() {
     if (!player) return;
 
-    const isRunning = (!isMobile && shiftKey.isDown) || (isMobile && isRunningMobile);
+    // Run
+    const isRunning = (shiftKey && shiftKey.isDown) || (isMobile && runBtn && runBtn.dataset.active === "true");
     const speed = isRunning ? 150 : 70;
 
+    // Reset velocity
     player.setVelocity(0);
 
-    let moved = false;
+    // PC controls
     if (!isMobile) {
-      if (cursors.left.isDown)  { player.setVelocityX(-speed); playAnim("left",  isRunning);  moved = true; }
-      else if (cursors.right.isDown){ player.setVelocityX(speed);  playAnim("right", isRunning); moved = true; }
-      else if (cursors.up.isDown){ player.setVelocityY(-speed); playAnim("up",    isRunning);  moved = true; }
-      else if (cursors.down.isDown){ player.setVelocityY(speed); playAnim("down",  isRunning);  moved = true; }
-      else { player.anims.stop(); }
+      if (cursors.left.isDown) { player.setVelocityX(-speed); playAnim("left", isRunning); }
+      else if (cursors.right.isDown) { player.setVelocityX(speed); playAnim("right", isRunning); }
+      else if (cursors.up.isDown) { player.setVelocityY(-speed); playAnim("up", isRunning); }
+      else if (cursors.down.isDown) { player.setVelocityY(speed); playAnim("down", isRunning); }
+      else player.anims.stop();
     }
 
+    // Mobile controls
     if (isMobile && joystick) {
       const f = joystick.force, angle = joystick.angle;
       if (f > 0) {
         const rad = Phaser.Math.DegToRad(angle);
         player.setVelocityX(Math.cos(rad) * speed * f);
         player.setVelocityY(Math.sin(rad) * speed * f);
-        moved = true;
 
         if (angle >= -45 && angle <= 45) playAnim("right", isRunning);
         else if (angle >= 135 || angle <= -135) playAnim("left", isRunning);
         else if (angle > 45 && angle < 135) playAnim("down", isRunning);
         else playAnim("up", isRunning);
-      } else if (!moved) {
-        player.anims.stop();
-      }
+      } else player.anims.stop();
     }
 
     player.setDepth(player.y);
 
+    // Dust
     const moving = Math.abs(player.body.velocity.x) > 1 || Math.abs(player.body.velocity.y) > 1;
     dustEmitter.on = isRunning && moving;
 
+    // Mini-map
     if (player.anims.currentAnim) {
       const dir = player.anims.currentAnim.key;
-      if      (dir === "up")    playerMiniArrow.rotation = 0;
+      if (dir === "up") playerMiniArrow.rotation = 0;
       else if (dir === "right") playerMiniArrow.rotation = Phaser.Math.DegToRad(90);
-      else if (dir === "down")  playerMiniArrow.rotation = Phaser.Math.DegToRad(180);
-      else if (dir === "left")  playerMiniArrow.rotation = Phaser.Math.DegToRad(-90);
+      else if (dir === "down") playerMiniArrow.rotation = Phaser.Math.DegToRad(180);
+      else if (dir === "left") playerMiniArrow.rotation = Phaser.Math.DegToRad(-90);
     }
     playerMiniArrow.x = minimapCam.worldView.x + player.x * minimapCam.zoom;
     playerMiniArrow.y = minimapCam.worldView.y + player.y * minimapCam.zoom;
 
+    // POI interaction
     currentPOI = null;
     for (let poi of poiData) {
       const d = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
@@ -285,7 +299,9 @@ window.onload = function () {
     }
   }
 
+  // --------------------------------
   // Helpers
+  // --------------------------------
   function playAnim(key, isRunning) {
     if (player.anims.currentAnim?.key !== key) {
       player.anims.play(key, true);
@@ -338,4 +354,5 @@ window.onload = function () {
     };
   }
 };
+
 
