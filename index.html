@@ -5,21 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Erasmus Game</title>
   <link rel="stylesheet" href="style.css">
-  <!-- Phaser -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
 </head>
 <body>
-  <!-- Intro -->
+  <!-- Intro screen -->
   <div id="intro">
     <h1>ERASMUS GAME</h1>
     <button id="introStart">COMMENCER</button>
   </div>
 
-  <!-- Zone de jeu -->
+  <!-- Conteneur du jeu -->
   <div id="game"></div>
+
+  <!-- Bannière des villes -->
+  <div id="city-banner"></div>
 
   <!-- Contrôles mobiles -->
   <div id="mobile-controls">
+    <!-- Croix directionnelle -->
     <div id="dpad">
       <button id="btn-up" class="dpad-btn">▲</button>
       <div class="dpad-middle">
@@ -29,22 +32,21 @@
       <button id="btn-down" class="dpad-btn">▼</button>
     </div>
 
+    <!-- Boutons actions -->
     <div id="action-buttons">
       <button id="btn-interact" class="action-btn red">E</button>
       <button id="btn-run" class="action-btn red">🏃</button>
     </div>
   </div>
 
-  <!-- Bandeau villes -->
-  <div id="city-banner"></div>
-
   <!-- Sons -->
-  <audio id="bgm" src="audio/bgm.mp3" loop></audio>
-  <audio id="sfx-open" src="audio/open.mp3"></audio>
-  <audio id="sfx-close" src="audio/close.mp3"></audio>
+  <audio id="bgm" src="audio/bgm.mp3" loop preload="auto"></audio>
+  <audio id="sfx-open" src="audio/open.mp3" preload="auto"></audio>
+  <audio id="sfx-close" src="audio/close.mp3" preload="auto"></audio>
 
   <!-- Script principal -->
   <script src="main.js"></script>
 </body>
 </html>
+
 
