@@ -31,12 +31,15 @@ body, html {
   padding: 20px;
   border-radius: 12px;
   max-width: 90%;
+  max-height: 85vh;  /* <= limite en hauteur */
+  overflow-y: auto;  /* scroll si contenu trop grand */
   text-align: center;
   position: relative;
 }
 
 #interaction-box .interaction-content img {
   max-width: 100%;
+  max-height: 60vh; /* <= l’image ne dépasse pas l’écran */
   margin-top: 10px;
   border-radius: 8px;
 }
