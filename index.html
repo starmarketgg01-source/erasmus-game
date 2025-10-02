@@ -9,31 +9,17 @@
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
 </head>
 <body>
-  <!-- Intro écran -->
+  <!-- Intro -->
   <div id="intro">
     <h1>ERASMUS GAME</h1>
     <button id="introStart">COMMENCER</button>
   </div>
 
-  <!-- Bannière ville -->
-  <div id="city-banner"></div>
-
-  <!-- Jeu -->
+  <!-- Zone de jeu -->
   <div id="game"></div>
-
-  <!-- Boîte interaction POI -->
-  <div id="interaction-box">
-    <div class="interaction-content">
-      <button id="closeBox">✖</button>
-      <h2 id="poi-title"></h2>
-      <p id="poi-text"></p>
-      <img id="poi-img" src="" alt="" style="display:none;">
-    </div>
-  </div>
 
   <!-- Contrôles mobiles -->
   <div id="mobile-controls">
-    <!-- Croix directionnelle -->
     <div id="dpad">
       <button id="btn-up" class="dpad-btn">▲</button>
       <div class="dpad-middle">
@@ -43,23 +29,22 @@
       <button id="btn-down" class="dpad-btn">▼</button>
     </div>
 
-    <!-- Boutons action -->
     <div id="action-buttons">
-      <button id="btn-interact" class="action-btn">E</button>
-      <button id="btn-run" class="action-btn">🏃</button>
+      <button id="btn-interact" class="action-btn red">E</button>
+      <button id="btn-run" class="action-btn red">🏃</button>
     </div>
   </div>
 
+  <!-- Bandeau villes -->
+  <div id="city-banner"></div>
+
   <!-- Sons -->
-  <audio id="bgm" src="audio/bgm.mp3" loop preload="auto"></audio>
-  <audio id="sfx-open" src="audio/open.mp3" preload="auto"></audio>
-  <audio id="sfx-close" src="audio/close.mp3" preload="auto"></audio>
+  <audio id="bgm" src="audio/bgm.mp3" loop></audio>
+  <audio id="sfx-open" src="audio/open.mp3"></audio>
+  <audio id="sfx-close" src="audio/close.mp3"></audio>
 
-
-  <!-- Script jeu -->
+  <!-- Script principal -->
   <script src="main.js"></script>
 </body>
 </html>
-
-
 
