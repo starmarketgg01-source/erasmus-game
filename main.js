@@ -157,7 +157,10 @@ window.onload = function () {
               tile.setCollision(false, false, false, false);
             }
           });
-          console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_INDICES);
+          if (tilesBlocking.length === 0) {
+    return; // pas de vrai blocage, on ignore
+}
+console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_INDICES);
         } catch (err) {
           console.warn("Erreur en réglant collisions pour", name, err);
         }
@@ -427,17 +430,28 @@ window.onload = function () {
       const wx = player.x + c.dx;
       const wy = player.y + c.dy;
       console.warn(`⚠️ Player blocked ${c.dir} — check (${Math.round(wx)}, ${Math.round(wy)})`);
-      for (const [layerName, tLayer] of Object.entries(createdLayers)) {
+      const tilesBlocking = [];
+for (const [layerName, tLayer] of Object.entries(createdLayers)) {
         try {
           const tile = tLayer.getTileAtWorldXY(wx, wy, true);
           if (tile && tile.index !== -1) {
+    const ignored = IGNORE_TILE_INDICES.includes(tile.index);
+    if (!ignored && tile.collides) {
+      tilesBlocking.push({ layerName, index: tile.index });
+    }
             // Skip tiles that are intentionally non-blocking
             if (IGNORE_TILE_INDICES.includes(tile.index)) {
               // For debugging clarity, still log they are ignored
-              console.log(`  → layer "${layerName}" a tile index=${tile.index} at (${tile.x},${tile.y}) (IGNORED)`, tile.properties || {}, "collides?", tile.collides);
+              if (tilesBlocking.length === 0) {
+    return; // pas de vrai blocage, on ignore
+}
+console.log(`  → layer "${layerName}" a tile index=${tile.index} at (${tile.x},${tile.y}) (IGNORED)`, tile.properties || {}, "collides?", tile.collides);
               continue;
             }
-            console.log(`  → layer "${layerName}" a tile index=${tile.index} at (${tile.x},${tile.y})`, tile.properties || {}, "collides?", tile.collides);
+            if (tilesBlocking.length === 0) {
+    return; // pas de vrai blocage, on ignore
+}
+console.log(`  → layer "${layerName}" a tile index=${tile.index} at (${tile.x},${tile.y})`, tile.properties || {}, "collides?", tile.collides);
           }
         } catch (err) {}
       }
