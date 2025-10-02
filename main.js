@@ -1,5 +1,5 @@
 // ==================================
-// Erasmus Game - main.js (COMPLET) - CORRIGÉ
+// Erasmus Game - main.js corrigé
 // ==================================
 window.onload = function () {
   // -------------------------------
@@ -25,26 +25,16 @@ window.onload = function () {
   let map, player;
   let cursors, shiftKey, interactionKey;
 
-  // Mini-map
   let minimapCam, playerMiniArrow, miniFrameGfx;
-
-  // Particules
   let dustEmitter;
-
-  // POI
   let poiData = [];
   let currentPOI = null;
 
-  // Villes
   let villes = [];
   let currentVille = null;
 
-  // DOM
   let interactionBox;
-
-  // Flags
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
   const mobileInput = { up: false, down: false, left: false, right: false, run: false };
 
   // ---------------------------------------------------------------------------
@@ -72,7 +62,7 @@ window.onload = function () {
     const ts3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
     const tilesets = [ts1, ts2, ts3];
 
-    const collisionLayers = ["rails","bord de map","vegetation 1","vegetation 2","batiments 1","batiments 2"];
+    const collisionLayers = ["water","rails","bord de map","vegetation 1","vegetation 2","batiments 1","batiments 2"];
     const createdLayers = {};
 
     map.layers.forEach(ld => {
@@ -92,15 +82,13 @@ window.onload = function () {
     const lampTopLayer = map.createLayer("lampadaire_haut", tilesets, 0, 0);
     if (lampTopLayer) lampTopLayer.setDepth(9999);
 
-    // Objet layer : POI + spawn
+    // === Spawn player à spawn_avezzano (sécurisé) ===
+    let spawnPoint = null;
     const objLayer = map.getObjectLayer("POI");
     if (objLayer) {
       objLayer.objects.forEach(obj => {
         if (obj.name === "spawn_avezzano") {
-          player = this.physics.add.sprite(obj.x, obj.y, "player", 0);
-          player.setOrigin(0.5, 1);
-          player.setScale(0.20);
-          player.setCollideWorldBounds(true);
+          spawnPoint = obj;
         } else {
           poiData.push({
             x: obj.x,
@@ -112,20 +100,28 @@ window.onload = function () {
         }
       });
     }
-    
-    // Objet layer VILLE
-const villeLayer = map.getObjectLayer("VILLE");
-if (villeLayer) {
-  villeLayer.objects.forEach(obj => {
-    villes.push({
-      name: obj.name,
-      x: obj.x + (obj.width || 0) / 2,   // centre X
-      y: obj.y + (obj.height || 0) / 2,  // centre Y
-      radius: Math.max(obj.width || 0, obj.height || 0) / 2 || 150
-    });
-  });
-}
+    if (!spawnPoint) {
+      console.warn("⚠️ Aucun spawn_avezzano trouvé, spawn forcé en (100,100)");
+      spawnPoint = { x: 100, y: 100 };
+    }
 
+    player = this.physics.add.sprite(spawnPoint.x, spawnPoint.y, "player", 0);
+    player.setOrigin(0.5, 1);
+    player.setScale(0.20);
+    player.setCollideWorldBounds(true);
+
+    // === Villes ===
+    const villeLayer = map.getObjectLayer("VILLE");
+    if (villeLayer) {
+      villeLayer.objects.forEach(obj => {
+        villes.push({
+          name: obj.name,
+          x: obj.x + (obj.width || 0) / 2,
+          y: obj.y + (obj.height || 0) / 2,
+          radius: Math.max(obj.width || 0, obj.height || 0) / 2 || 150
+        });
+      });
+    }
 
     // Colliders
     Object.entries(createdLayers).forEach(([name, layer]) => {
@@ -142,24 +138,21 @@ if (villeLayer) {
     minimapCam = this.cameras.add(window.innerWidth - miniW - 12, 12, miniW, miniH);
     minimapCam.setZoom(miniZoom).startFollow(player);
 
-    // === FIX : n'afficher le cadre/fill de la mini-map QUE si on n'est PAS sur mobile
-    // Ça supprime le "carré semi-transparent" gênant sur mobile qui suivait la map.
     if (!isMobile) {
       miniFrameGfx = this.add.graphics();
       miniFrameGfx.fillStyle(0x000000, 0.30).fillRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
       miniFrameGfx.lineStyle(2, 0xffffff, 1).strokeRoundedRect(minimapCam.x - 6, minimapCam.y - 6, miniW + 12, miniH + 12, 10);
       miniFrameGfx.setScrollFactor(0).setDepth(11000);
-    } else {
-      miniFrameGfx = null;
     }
+
+    playerMiniArrow = this.add.triangle(minimapCam.x + miniW / 2, minimapCam.y + miniH / 2, 0, 12, 12, 12, 6, 0, 0xff0000)
+      .setScrollFactor(0).setDepth(11001);
 
     // Contrôles
     cursors = this.input.keyboard.createCursorKeys();
     shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-    // Interaction box — si il existe déjà dans le DOM on le réutilise,
-    // sinon on le crée (pour éviter doublons si tu as mis la div en HTML).
     interactionBox = document.getElementById("interaction-box");
     if (!interactionBox) {
       interactionBox = document.createElement("div");
@@ -209,7 +202,8 @@ if (villeLayer) {
   // UPDATE
   // ---------------------------------------------------------------------------
   function update() {
-    if (!player) return;
+    if (!player) return; // sécurité
+
     const isRunning = (shiftKey && shiftKey.isDown) || mobileInput.run;
     const speed = isRunning ? 150 : 70;
     let vx = 0, vy = 0;
@@ -243,11 +237,9 @@ if (villeLayer) {
     }
 
     player.setDepth(player.y);
+    dustEmitter.on = isRunning && (Math.abs(vx) > 1 || Math.abs(vy) > 1);
 
-    const moving = Math.abs(vx) > 1 || Math.abs(vy) > 1;
-    dustEmitter.on = isRunning && moving;
-
-    // Arrow rotation
+    // Minimap arrow
     if (player.anims.currentAnim) {
       const dir = player.anims.currentAnim.key;
       if (dir.includes("up")) playerMiniArrow.rotation = 0;
@@ -255,7 +247,6 @@ if (villeLayer) {
       else if (dir.includes("down")) playerMiniArrow.rotation = Phaser.Math.DegToRad(180);
       else if (dir.includes("left")) playerMiniArrow.rotation = Phaser.Math.DegToRad(-90);
     }
-    // Update position of mini arrow relative to minimap camera
     if (minimapCam) {
       playerMiniArrow.x = minimapCam.worldView.x + player.x * minimapCam.zoom;
       playerMiniArrow.y = minimapCam.worldView.y + player.y * minimapCam.zoom;
@@ -280,6 +271,7 @@ if (villeLayer) {
     }
     if (inVille && inVille !== currentVille) {
       currentVille = inVille;
+      console.log("Entrée dans :", inVille);
       showCityBanner(inVille);
     }
   }
@@ -333,40 +325,26 @@ if (villeLayer) {
     };
   }
 
-  // ✅ CORRIGÉ AVEC FONDU NOIR
   function showCityBanner(name) {
-    // Bannière (création si besoin)
     let banner = document.getElementById("city-banner");
     if (!banner) {
       banner = document.createElement("div");
       banner.id = "city-banner";
       document.body.appendChild(banner);
     }
-
-    // Overlay de fondu (création si besoin)
     let overlay = document.getElementById("fade-overlay");
     if (!overlay) {
       overlay = document.createElement("div");
       overlay.id = "fade-overlay";
       document.body.appendChild(overlay);
     }
-
-    // Active overlay (fondu)
     overlay.classList.add("active");
-
-    // Après le fondu, affiche la bannière, puis retire overlay
     setTimeout(() => {
       banner.innerText = name;
       banner.classList.add("show");
-
-      // retire l'overlay (il se fade via CSS)
       overlay.classList.remove("active");
-
-      // cache la bannière après 4s
-      setTimeout(() => {
-        banner.classList.remove("show");
-      }, 4000);
-    }, 420); // timing cohérent avec la transition CSS
+      setTimeout(() => banner.classList.remove("show"), 4000);
+    }, 420);
   }
 
   // ---------------------------------------------------------------------------
