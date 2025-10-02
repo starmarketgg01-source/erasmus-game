@@ -8,23 +8,18 @@
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
 </head>
 <body>
-  <!-- Intro -->
+  <!-- Intro écran -->
   <div id="intro">
-    <div class="intro-card">
-      <h1 class="arcade-title">START GAME</h1>
-      <button id="introStart">COMMENCER</button>
-    </div>
+    <div id="intro-bg"></div>
+    <h1 id="intro-title">ERASMUS GAME</h1>
+    <button id="introStart">Commencer</button>
   </div>
 
-  <!-- Conteneur du jeu -->
+  <!-- Jeu -->
   <div id="game"></div>
 
-  <!-- Overlay Title Card (pour les villes) -->
-  <div id="title-card"></div>
-
-  <!-- Contrôles mobiles (style GameBoy) -->
+  <!-- Contrôles mobiles -->
   <div id="mobile-controls">
-    <!-- Croix directionnelle -->
     <div id="dpad">
       <button id="btn-up" class="dpad-btn">▲</button>
       <div class="dpad-middle">
@@ -33,16 +28,15 @@
       </div>
       <button id="btn-down" class="dpad-btn">▼</button>
     </div>
-
-    <!-- Boutons à droite -->
     <div id="action-buttons">
       <button id="btn-interact" class="action-btn">E</button>
       <button id="btn-run" class="action-btn">🏃</button>
     </div>
   </div>
 
-  <!-- Script principal -->
+  <!-- Title Card -->
+  <div id="title-card"></div>
+
   <script src="main.js"></script>
 </body>
 </html>
-
