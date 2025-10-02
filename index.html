@@ -5,35 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Erasmus Game</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Phaser -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
 </head>
 <body>
-  <!-- Intro -->
+  <!-- Intro écran -->
   <div id="intro">
-    <h1 id="gameTitle">ERASMUS GAME</h1>
+    <h1>ERASMUS GAME</h1>
     <button id="introStart">COMMENCER</button>
   </div>
+
+  <!-- Bannière ville -->
+  <div id="city-banner"></div>
 
   <!-- Jeu -->
   <div id="game"></div>
 
-  <!-- Contrôles mobiles (D-pad + boutons E/Run) -->
-  <div id="mobile-controls">
-    <div id="dpad">
-      <button id="btn-up" class="dpad-btn">▲</button>
-      <div class="dpad-middle">
-        <button id="btn-left" class="dpad-btn">◀</button>
-        <button id="btn-right" class="dpad-btn">▶</button>
-      </div>
-      <button id="btn-down" class="dpad-btn">▼</button>
-    </div>
-    <div id="action-buttons">
-      <button id="btn-interact" class="action-btn">E</button>
-      <button id="btn-run" class="action-btn">🏃</button>
-    </div>
-  </div>
-
-  <!-- Fenêtre d’interaction POI -->
+  <!-- Boîte interaction POI -->
   <div id="interaction-box">
     <div class="interaction-content">
       <button id="closeBox">✖</button>
@@ -43,9 +31,31 @@
     </div>
   </div>
 
-  <!-- Animation nom de ville -->
-  <div id="city-banner"></div>
+  <!-- Contrôles mobiles -->
+  <div id="mobile-controls">
+    <!-- Croix directionnelle -->
+    <div id="dpad">
+      <button id="btn-up" class="dpad-btn">▲</button>
+      <div class="dpad-middle">
+        <button id="btn-left" class="dpad-btn">◀</button>
+        <button id="btn-right" class="dpad-btn">▶</button>
+      </div>
+      <button id="btn-down" class="dpad-btn">▼</button>
+    </div>
 
+    <!-- Boutons action -->
+    <div id="action-buttons">
+      <button id="btn-interact" class="action-btn">E</button>
+      <button id="btn-run" class="action-btn">🏃</button>
+    </div>
+  </div>
+
+  <!-- Sons -->
+  <audio id="bgm" src="audio/bgm.mp3" loop></audio>
+  <audio id="sfx-open" src="audio/open.mp3"></audio>
+  <audio id="sfx-close" src="audio/close.mp3"></audio>
+
+  <!-- Script jeu -->
   <script src="main.js"></script>
 </body>
 </html>
