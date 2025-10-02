@@ -306,7 +306,7 @@ window.onload = function () {
   player.setVelocity(0);
   player.anims.stop();
   // facultatif : remettre la frame "idle" en fonction de la dernière direction
-}
+      } 
 
 
     // --- INPUTS MOBILE (D-pad) ---
