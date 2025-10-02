@@ -1,11 +1,7 @@
 // =========================================
-// Erasmus Game - main_full_final.js
-// Corrected & unified version
-// - Collision patch for problematic tile indices (quick option 2)
-// - Robust spawn detection (spawn_avezzano fallback)
-// - POI interactions (E + mobile)
-// - City banners when entering ville zones
-// - Minimap, particles, mobile controls, debugCheckBlocking()
+// Erasmus Game - main_full_final_v2.js
+// Updated collision fix: properly disable specific tile indices using setCollision(indexes, false)
+// Includes POI interactions, city banners, minimap, mobile controls, debugCheckBlocking()
 // =========================================
 window.onload = function () {
   // -------------------------------
@@ -47,20 +43,19 @@ window.onload = function () {
   ];
 
   // Quick-fix: tile indices that caused the bridge/path to be blocking
-  const IGNORE_TILE_INDICES = [809, 1341, 2269];
+  // Added both 2268 and 2269 because logs showed 2268 sometimes.
+  const IGNORE_TILE_INDICES = [809, 1341, 2268, 2269];
 
   // -------------------------------
   // PRELOAD
   // -------------------------------
   function preload() {
-    // adjust paths to your project structure if necessary
     this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
     this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
     this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
     this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
     this.load.spritesheet("player", "images/characters/player.png", { frameWidth: 144, frameHeight: 144 });
-
-    // audio (optional) - keep same ids as your HTML audio elements
+    // audio (optional)
     this.load.audio("bgm", "audio/bgm.mp3");
     this.load.audio("sfx-open", "audio/open.mp3");
     this.load.audio("sfx-close", "audio/close.mp3");
@@ -81,11 +76,9 @@ window.onload = function () {
     createdLayers = {};
     map.layers.forEach(ld => {
       const name = ld.name;
-      // skip special decorative layering logic later if needed
       try {
         const layer = map.createLayer(name, tilesets, 0, 0);
         createdLayers[name] = layer;
-        // Dont yet set collision here if we want to be more selective later
       } catch (err) {
         console.warn("Erreur création layer", name, err);
       }
@@ -108,7 +101,6 @@ window.onload = function () {
         const name = obj.name || "";
         const type = (obj.type || "").toLowerCase();
         if (name.toLowerCase() === "spawn_avezzano" || type === "spawn") {
-          // prefer exact spawn_avezzano, otherwise first spawn-type
           if (!spawnPoint || name.toLowerCase() === "spawn_avezzano") spawnPoint = obj;
         } else {
           poiData.push({
@@ -122,12 +114,10 @@ window.onload = function () {
       });
     }
 
-    // fallback attempts if spawn not found
     if (!spawnPoint && objLayer && Array.isArray(objLayer.objects)) {
       spawnPoint = objLayer.objects.find(o => (o.name || "").toLowerCase().includes("spawn")) || null;
     }
     if (!spawnPoint) {
-      // final fallback: center of map
       console.warn("⚠️ spawn_avezzano introuvable — fallback à la moitié de la carte");
       spawnPoint = { x: map.widthInPixels / 2, y: map.heightInPixels / 2 };
     }
@@ -156,39 +146,34 @@ window.onload = function () {
     // COLLISIONS: set collisions on layers but disable problematic indices
     // ------------------------------------------------------------------
     Object.entries(createdLayers).forEach(([name, layer]) => {
-      // for layers we consider collidable: set collision by exclusion first
       if (collisionLayers.includes(name)) {
         try {
+          // make layer tiles collidable by default
           layer.setCollisionByExclusion([-1]);
-          // then disable specific tile indices known to block the bridge/path
-          IGNORE_TILE_INDICES.forEach(idx => {
-            // layer.setCollision(idx, false) can be used, but we'll iterate tiles and clear collision flags
-            layer.forEachTile(tile => {
-              if (tile && tile.index === idx) {
-                tile.setCollision(false, false, false, false); // disable all edges
-              }
-            });
+          // disable collisions for the specific indices (clean API call)
+          layer.setCollision(IGNORE_TILE_INDICES, false, true);
+          // ensure tiles flagged are cleared (redundant safety)
+          layer.forEachTile(tile => {
+            if (tile && IGNORE_TILE_INDICES.includes(tile.index)) {
+              tile.setCollision(false, false, false, false);
+            }
           });
+          console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_INDICES);
         } catch (err) {
-          // some layers might not be TilemapLayer - ignore
-          console.warn("Warning setting collisions on", name, err);
+          console.warn("Erreur en réglant collisions pour", name, err);
         }
       }
     });
 
-    // finally add physics colliders between player and the collidable layers
+    // add physics colliders between player and collidable layers
     Object.entries(createdLayers).forEach(([name, layer]) => {
       if (collisionLayers.includes(name)) {
         try { this.physics.add.collider(player, layer); } catch (e) {}
       }
     });
-    // decor layer collider (if present)
     if (createdLayers["lampadaire + bancs + panneaux"]) {
       try { this.physics.add.collider(player, createdLayers["lampadaire + bancs + panneaux"]); } catch(e){}
     }
-
-    // Debug logging to ensure patch applied
-    console.log("IGNORE_TILE_INDICES appliqués:", IGNORE_TILE_INDICES);
 
     // ------------------------------------------------------------------
     // CAMERA + MINIMAP
@@ -348,7 +333,7 @@ window.onload = function () {
       showCityBanner(inVille);
     }
 
-    // Debug blocking check (prints tiles/layers when player is physically blocked)
+    // Debug blocking check
     debugCheckBlocking();
   }
 
@@ -447,7 +432,7 @@ window.onload = function () {
         try {
           const tile = tLayer.getTileAtWorldXY(wx, wy, true);
           if (tile && tile.index !== -1) {
-            console.log(`  → layer "${layerName}" a tile index=${tile.index} at (${tile.x},${tile.y})`, tile.properties || {});
+            console.log(`  → layer "${layerName}" a tile index=${tile.index} at (${tile.x},${tile.y})`, tile.properties || {}, "collides?", tile.collides);
           }
         } catch (err) {}
       }
@@ -487,4 +472,3 @@ window.onload = function () {
   // end window.onload
   // -------------------------------
 };
-}; // end window.onload
