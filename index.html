@@ -20,34 +20,32 @@
   <!-- Bannière des villes -->
   <div id="city-banner"></div>
 
-  <!-- Contrôles mobiles -->
-  <div id="mobile-controls">
-    <!-- Croix directionnelle -->
-    <div id="dpad">
-      <button id="btn-up" class="dpad-btn">▲</button>
-      <div class="dpad-middle">
-        <button id="btn-left" class="dpad-btn">◀</button>
-        <button id="btn-right" class="dpad-btn">▶</button>
-      </div>
-      <button id="btn-down" class="dpad-btn">▼</button>
-    </div>
+  <!-- Overlay pour fondu noir -->
+  <div id="fade-overlay"></div>
 
-    <!-- Boutons actions -->
-    <div id="action-buttons">
-      <button id="btn-interact" class="action-btn red">E</button>
-      <button id="btn-run" class="action-btn red">🏃</button>
-    </div>
+  <!-- Boîte d'interaction (remplie dynamiquement) -->
+  <div id="interaction-box"></div>
+
+  <!-- Mobile controls -->
+  <div id="mobile-controls">
+    <button id="btn-up">▲</button>
+    <button id="btn-left">◀</button>
+    <button id="btn-down">▼</button>
+    <button id="btn-right">▶</button>
+    <button id="btn-run">RUN</button>
+    <button id="btn-interact">E</button>
   </div>
 
   <!-- Sons -->
-  <audio id="bgm" src="audio/bgm.mp3" loop preload="auto"></audio>
-  <audio id="sfx-open" src="audio/open.mp3" preload="auto"></audio>
-  <audio id="sfx-close" src="audio/close.mp3" preload="auto"></audio>
+  <audio id="bgm" src="audio/bgm.mp3" loop></audio>
+  <audio id="sfx-open" src="audio/open.mp3"></audio>
+  <audio id="sfx-close" src="audio/close.mp3"></audio>
 
   <!-- Script principal -->
   <script src="main.js"></script>
 </body>
 </html>
+
 
 
 
