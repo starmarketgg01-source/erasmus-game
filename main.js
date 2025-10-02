@@ -302,12 +302,8 @@ window.onload = function () {
         moved = true;
       }
 
-      if (!moved) {
-  player.setVelocity(0);
-  player.anims.stop();
-  // facultatif : remettre la frame "idle" en fonction de la dernière direction
-      } 
-
+      if (!moved) player.anims.stop();
+    }
 
     // --- INPUTS MOBILE (D-pad) ---
     if (isMobile) {
