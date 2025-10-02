@@ -122,3 +122,22 @@ body, html {
   pointer-events: auto;
   box-shadow: 0 4px #222;
 }
+
+#intro {
+  position: fixed; inset: 0; background: radial-gradient(#0b0f1a, #000);
+  display:flex; align-items:center; justify-content:center; z-index:100000;
+}
+.intro-card{
+  text-align:center; color:#fff; padding:32px 40px; border-radius:16px;
+  background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.2);
+  backdrop-filter:saturate(120%) blur(6px); box-shadow:0 30px 120px rgba(0,0,0,0.6);
+}
+.intro-card h1{ margin:0 0 8px; letter-spacing:2px; font-size:32px; }
+.intro-card p{opacity:.8; margin:0 0 16px;}
+#introStart{
+  background:#00d1ff; color:#001018; border:none; border-radius:12px; padding:10px 18px;
+  font-weight:700; cursor:pointer; box-shadow:0 10px 20px rgba(0,209,255,.35);
+}
+.fade-out{ animation: fadeout .6s ease forwards; }
+@keyframes fadeout { to{ opacity:0; visibility:hidden; } }
+
