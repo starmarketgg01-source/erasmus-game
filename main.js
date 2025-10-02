@@ -1,7 +1,6 @@
 // =========================================
-// Erasmus Game - main_full_final_v2.js
-// Updated collision fix: properly disable specific tile indices using setCollision(indexes, false)
-// Includes POI interactions, city banners, minimap, mobile controls, debugCheckBlocking()
+// Erasmus Game - main_full_final_v2_patched.js
+// Patched: debugCheckBlocking now ignores problematic tile indices so the player won't be falsely reported as blocked.
 // =========================================
 window.onload = function () {
   // -------------------------------
@@ -432,6 +431,12 @@ window.onload = function () {
         try {
           const tile = tLayer.getTileAtWorldXY(wx, wy, true);
           if (tile && tile.index !== -1) {
+            // Skip tiles that are intentionally non-blocking
+            if (IGNORE_TILE_INDICES.includes(tile.index)) {
+              // For debugging clarity, still log they are ignored
+              console.log(`  → layer "${layerName}" a tile index=${tile.index} at (${tile.x},${tile.y}) (IGNORED)`, tile.properties || {}, "collides?", tile.collides);
+              continue;
+            }
             console.log(`  → layer "${layerName}" a tile index=${tile.index} at (${tile.x},${tile.y})`, tile.properties || {}, "collides?", tile.collides);
           }
         } catch (err) {}
