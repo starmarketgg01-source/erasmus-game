@@ -1,7 +1,12 @@
-// Erasmus Game - main.js (corrected, with collision-fix option 2)
-// Generated for user: integrated fixes for blocked bridge, POI interaction, city banners, mobile controls and debug.
-// Paths assume same assets as your project (images/maps/erasmus.tmj, images/...)
-
+// =========================================
+// Erasmus Game - main_full_final.js
+// Corrected & unified version
+// - Collision patch for problematic tile indices (quick option 2)
+// - Robust spawn detection (spawn_avezzano fallback)
+// - POI interactions (E + mobile)
+// - City banners when entering ville zones
+// - Minimap, particles, mobile controls, debugCheckBlocking()
+// =========================================
 window.onload = function () {
   // -------------------------------
   // CONFIG
@@ -13,7 +18,7 @@ window.onload = function () {
     parent: "game",
     physics: {
       default: "arcade",
-      arcade: { debug: false } // set true to visualize bodies
+      arcade: { debug: false }
     },
     scene: { preload, create, update }
   };
@@ -35,28 +40,27 @@ window.onload = function () {
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   const mobileInput = { up: false, down: false, left: false, right: false, run: false };
 
-  // layers holder for debug & tile fixes
+  // layer references for debug & operations
   let createdLayers = {};
   const collisionLayers = [
     "water","rails","bord de map","vegetation 1","vegetation 2","batiments 1","batiments 2"
   ];
 
-  // tile indices to ignore (quick fix option 2)
+  // Quick-fix: tile indices that caused the bridge/path to be blocking
   const IGNORE_TILE_INDICES = [809, 1341, 2269];
 
   // -------------------------------
   // PRELOAD
   // -------------------------------
   function preload() {
+    // adjust paths to your project structure if necessary
     this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
     this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
     this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
     this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
-    this.load.spritesheet("player", "images/characters/player.png", {
-      frameWidth: 144, frameHeight: 144
-    });
+    this.load.spritesheet("player", "images/characters/player.png", { frameWidth: 144, frameHeight: 144 });
 
-    // audio (optional)
+    // audio (optional) - keep same ids as your HTML audio elements
     this.load.audio("bgm", "audio/bgm.mp3");
     this.load.audio("sfx-open", "audio/open.mp3");
     this.load.audio("sfx-close", "audio/close.mp3");
@@ -73,44 +77,40 @@ window.onload = function () {
     const ts3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
     const tilesets = [ts1, ts2, ts3].filter(Boolean);
 
-    // create layers and keep reference
+    // create layers (store references)
     createdLayers = {};
     map.layers.forEach(ld => {
       const name = ld.name;
-      // create layer even if empty; skip a few special ones later
+      // skip special decorative layering logic later if needed
       try {
         const layer = map.createLayer(name, tilesets, 0, 0);
         createdLayers[name] = layer;
-        if (collisionLayers.includes(name)) {
-          // default legacy behaviour: all tiles are collidable by exclusion
-          layer.setCollisionByExclusion([-1]);
-        }
+        // Dont yet set collision here if we want to be more selective later
       } catch (err) {
-        console.warn("Impossible de créer layer", name, err);
+        console.warn("Erreur création layer", name, err);
       }
     });
 
-    // some decoration layers with different depth
+    // set depths for lampadaire layers (if present)
     if (createdLayers["lampadaire + bancs + panneaux"]) {
       createdLayers["lampadaire + bancs + panneaux"].setDepth(2000);
-      createdLayers["lampadaire + bancs + panneaux"].setCollisionByExclusion([-1]);
     }
     if (createdLayers["lampadaire_base"]) createdLayers["lampadaire_base"].setDepth(3000);
     if (createdLayers["lampadaire_haut"])  createdLayers["lampadaire_haut"].setDepth(9999);
 
-    // === OBJECT LAYERS: POI + spawn ===
-    // We want to be robust: check POI layer and find spawn_avezzano
+    // ------------------------------------------------------------------
+    // OBJECTS: POI & spawn
+    // ------------------------------------------------------------------
     let spawnPoint = null;
     const objLayer = map.getObjectLayer("POI");
-    if (objLayer) {
+    if (objLayer && Array.isArray(objLayer.objects)) {
       objLayer.objects.forEach(obj => {
-        if (obj.name && obj.name.toLowerCase() === "spawn_avezzano") {
-          spawnPoint = obj;
-        } else if (obj.type && obj.type.toLowerCase() === "spawn" && !spawnPoint) {
-          // alternative: using "type" property in Tiled
-          spawnPoint = obj;
+        const name = obj.name || "";
+        const type = (obj.type || "").toLowerCase();
+        if (name.toLowerCase() === "spawn_avezzano" || type === "spawn") {
+          // prefer exact spawn_avezzano, otherwise first spawn-type
+          if (!spawnPoint || name.toLowerCase() === "spawn_avezzano") spawnPoint = obj;
         } else {
-          // POI generic
           poiData.push({
             x: obj.x,
             y: obj.y,
@@ -122,61 +122,77 @@ window.onload = function () {
       });
     }
 
-    if (!spawnPoint) {
-      // try to find any object that contains "spawn" in name (case-insensitive)
-      if (objLayer) {
-        const anySpawn = objLayer.objects.find(o => o.name && o.name.toLowerCase().includes("spawn"));
-        if (anySpawn) spawnPoint = anySpawn;
-      }
+    // fallback attempts if spawn not found
+    if (!spawnPoint && objLayer && Array.isArray(objLayer.objects)) {
+      spawnPoint = objLayer.objects.find(o => (o.name || "").toLowerCase().includes("spawn")) || null;
     }
-
     if (!spawnPoint) {
-      // fallback - arbitrary safe position in the map
-      console.warn("⚠️ spawn_avezzano introuvable dans POI, fallback utilisé");
+      // final fallback: center of map
+      console.warn("⚠️ spawn_avezzano introuvable — fallback à la moitié de la carte");
       spawnPoint = { x: map.widthInPixels / 2, y: map.heightInPixels / 2 };
     }
 
-    // create player
+    // create player sprite
     player = this.physics.add.sprite(spawnPoint.x, spawnPoint.y, "player", 0);
     player.setOrigin(0.5, 1);
     player.setScale(0.20);
     player.setCollideWorldBounds(true);
 
-    // === VILLE OBJECTS ===
+    // ------------------------------------------------------------------
+    // VILLES (object layer 'VILLE')
+    // ------------------------------------------------------------------
     const villeLayer = map.getObjectLayer("VILLE");
     villes = [];
-    if (villeLayer) {
+    if (villeLayer && Array.isArray(villeLayer.objects)) {
       villeLayer.objects.forEach(obj => {
         const cx = obj.x + (obj.width || 0) / 2;
         const cy = obj.y + (obj.height || 0) / 2;
-        const radius = Math.max(obj.width || 0, obj.height || 0) / 2 || 150;
-        villes.push({ name: obj.name || "Ville", x: cx, y: cy, radius });
+        const r = Math.max(obj.width || 0, obj.height || 0) / 2 || 150;
+        villes.push({ name: obj.name || "Ville", x: cx, y: cy, radius: r });
       });
     }
 
-    // add colliders: player vs collidable layers
+    // ------------------------------------------------------------------
+    // COLLISIONS: set collisions on layers but disable problematic indices
+    // ------------------------------------------------------------------
     Object.entries(createdLayers).forEach(([name, layer]) => {
+      // for layers we consider collidable: set collision by exclusion first
       if (collisionLayers.includes(name)) {
-        this.physics.add.collider(player, layer);
+        try {
+          layer.setCollisionByExclusion([-1]);
+          // then disable specific tile indices known to block the bridge/path
+          IGNORE_TILE_INDICES.forEach(idx => {
+            // layer.setCollision(idx, false) can be used, but we'll iterate tiles and clear collision flags
+            layer.forEachTile(tile => {
+              if (tile && tile.index === idx) {
+                tile.setCollision(false, false, false, false); // disable all edges
+              }
+            });
+          });
+        } catch (err) {
+          // some layers might not be TilemapLayer - ignore
+          console.warn("Warning setting collisions on", name, err);
+        }
       }
     });
 
-    // Quick-fix (Option 2): disable collision for specific tile indices that blocked the bridge
-    // We iterate target layers and disable collision on offending indices.
-    ["ground","ponts"].forEach(layerName => {
-      const layer = createdLayers[layerName];
-      if (!layer) return;
-      layer.forEachTile(tile => {
-        if (tile && IGNORE_TILE_INDICES.includes(tile.index)) {
-          tile.setCollision(false, false, false, false);
-        }
-      });
+    // finally add physics colliders between player and the collidable layers
+    Object.entries(createdLayers).forEach(([name, layer]) => {
+      if (collisionLayers.includes(name)) {
+        try { this.physics.add.collider(player, layer); } catch (e) {}
+      }
     });
+    // decor layer collider (if present)
+    if (createdLayers["lampadaire + bancs + panneaux"]) {
+      try { this.physics.add.collider(player, createdLayers["lampadaire + bancs + panneaux"]); } catch(e){}
+    }
 
-    // Debug: show which tiles were set to non-collide (optional)
-    console.log("DEBUG: applied ignore indices to layers ground/ponts if present:", IGNORE_TILE_INDICES);
+    // Debug logging to ensure patch applied
+    console.log("IGNORE_TILE_INDICES appliqués:", IGNORE_TILE_INDICES);
 
-    // camera & minimap
+    // ------------------------------------------------------------------
+    // CAMERA + MINIMAP
+    // ------------------------------------------------------------------
     this.cameras.main.startFollow(player, true, 0.12, 0.12);
     this.cameras.main.setZoom(2.5);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -194,12 +210,13 @@ window.onload = function () {
     playerMiniArrow = this.add.triangle(minimapCam.x + miniW / 2, minimapCam.y + miniH / 2, 0, 12, 12, 12, 6, 0, 0xff0000)
       .setScrollFactor(0).setDepth(11001);
 
-    // inputs
+    // ------------------------------------------------------------------
+    // INPUTS & DOM
+    // ------------------------------------------------------------------
     cursors = this.input.keyboard.createCursorKeys();
     shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-    // interaction box (DOM)
     interactionBox = document.getElementById("interaction-box");
     if (!interactionBox) {
       interactionBox = document.createElement("div");
@@ -210,7 +227,9 @@ window.onload = function () {
       interactionBox.style.display = "none";
     }
 
-    // animations
+    // ------------------------------------------------------------------
+    // ANIMATIONS
+    // ------------------------------------------------------------------
     this.anims.create({ key: "down", frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }), frameRate: 5, repeat: -1 });
     this.anims.create({ key: "left", frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }), frameRate: 5, repeat: -1 });
     this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }), frameRate: 5, repeat: -1 });
@@ -220,7 +239,9 @@ window.onload = function () {
     this.anims.create({ key: "idle-right", frames: [{ key: "player", frame: 7 }] });
     this.anims.create({ key: "idle-up", frames: [{ key: "player", frame: 10 }] });
 
-    // particles (dust while running)
+    // ------------------------------------------------------------------
+    // PARTICLES (dust when running)
+    // ------------------------------------------------------------------
     const g = this.make.graphics({ x: 0, y: 0, add: false });
     g.fillStyle(0xffffff, 1).fillCircle(4, 4, 4);
     g.generateTexture("dust", 8, 8);
@@ -231,24 +252,26 @@ window.onload = function () {
     });
     dustEmitter.startFollow(player, 0, -6);
 
-    // mobile controls binding
+    // ------------------------------------------------------------------
+    // MOBILE CONTROLS + BINDINGS
+    // ------------------------------------------------------------------
     bindMobileControls();
 
-    // intro controls
+    // INTRO BUTTON (if present in DOM)
     const introBtn = document.getElementById("introStart");
     if (introBtn) {
       introBtn.onclick = () => {
-        document.getElementById("intro").style.display = "none";
+        const intro = document.getElementById("intro");
+        if (intro) intro.style.display = "none";
         try { document.getElementById("bgm")?.play(); } catch(_) {}
         showCityBanner("Avezzano");
       };
     }
-
   } // end create()
 
-  // ---------------------------------------------------------------------------
+  // -------------------------------
   // UPDATE
-  // ---------------------------------------------------------------------------
+  // -------------------------------
   function update() {
     if (!player) return;
 
@@ -286,7 +309,7 @@ window.onload = function () {
     player.setDepth(player.y);
     dustEmitter.on = isRunning && (Math.abs(vx) > 1 || Math.abs(vy) > 1);
 
-    // Minimap arrow rotation and position
+    // Minimap arrow
     if (player.anims.currentAnim) {
       const dir = player.anims.currentAnim.key;
       if (dir.includes("up")) playerMiniArrow.rotation = 0;
@@ -299,18 +322,22 @@ window.onload = function () {
       playerMiniArrow.y = minimapCam.worldView.y + player.y * minimapCam.zoom;
     }
 
-    // POI detection & interaction (keyboard)
+    // POI detection
     currentPOI = null;
     for (let poi of poiData) {
       const d = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
-      if (d < 40) { currentPOI = poi; if (!isMobile) showPressE(); break; }
+      if (d < 40) {
+        currentPOI = poi;
+        if (!isMobile) showPressE();
+        break;
+      }
     }
     if (!currentPOI && !isMobile) hidePressE();
     if (!isMobile && currentPOI && Phaser.Input.Keyboard.JustDown(interactionKey)) {
       showInteraction(currentPOI);
     }
 
-    // Villes detection (show banner once on entry)
+    // Villes detection
     let inVille = null;
     for (let v of villes) {
       const d = Phaser.Math.Distance.Between(player.x, player.y, v.x, v.y);
@@ -321,13 +348,13 @@ window.onload = function () {
       showCityBanner(inVille);
     }
 
-    // Debug check for blocking tiles (if player is blocked, prints layers/tiles)
+    // Debug blocking check (prints tiles/layers when player is physically blocked)
     debugCheckBlocking();
   }
 
-  // ---------------------------------------------------------------------------
+  // -------------------------------
   // HELPERS
-  // ---------------------------------------------------------------------------
+  // -------------------------------
   function playAnim(key, isRunning) {
     if (!player.anims.isPlaying || player.anims.currentAnim?.key !== key) {
       player.anims.play(key, true);
@@ -396,13 +423,12 @@ window.onload = function () {
     }, 420);
   }
 
-  // ---------------------------------------------------------------------------
-  // DEBUG CHECK FUNCTION
-  // ---------------------------------------------------------------------------
+  // -------------------------------
+  // DEBUG: tile-level blocking detection
+  // -------------------------------
   function debugCheckBlocking() {
     if (!player || !player.body) return;
     const body = player.body;
-    // only act if player is physically blocked in any direction
     if (!(body.blocked.left || body.blocked.right || body.blocked.up || body.blocked.down)) return;
 
     const checks = [
@@ -423,16 +449,14 @@ window.onload = function () {
           if (tile && tile.index !== -1) {
             console.log(`  → layer "${layerName}" a tile index=${tile.index} at (${tile.x},${tile.y})`, tile.properties || {});
           }
-        } catch (err) {
-          // ignore non tilemap layers
-        }
+        } catch (err) {}
       }
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // MOBILE CONTROLS
-  // ---------------------------------------------------------------------------
+  // -------------------------------
+  // MOBILE CONTROLS (touch, D-pad + actions)
+  // -------------------------------
   function bindMobileControls() {
     const bindButton = (id, onDown, onUp) => {
       const el = document.getElementById(id);
@@ -459,4 +483,8 @@ window.onload = function () {
     }
   }
 
+  // -------------------------------
+  // end window.onload
+  // -------------------------------
+};
 }; // end window.onload
