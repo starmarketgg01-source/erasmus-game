@@ -1108,9 +1108,53 @@
          "visible":true,
          "x":0,
          "y":0
+        }, 
+        {
+         "draworder":"topdown",
+         "id":17,
+         "name":"VILLE",
+         "objects":[
+                {
+                 "height":747,
+                 "id":12,
+                 "name":"L'Aquila",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":782,
+                 "x":19,
+                 "y":21
+                }, 
+                {
+                 "height":747,
+                 "id":13,
+                 "name":"Avezzano",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":779,
+                 "x":805,
+                 "y":22
+                }, 
+                {
+                 "height":550,
+                 "id":18,
+                 "name":"Gran Sasso",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":772,
+                 "x":29,
+                 "y":772
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
         }],
- "nextlayerid":17,
- "nextobjectid":12,
+ "nextlayerid":18,
+ "nextobjectid":19,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
@@ -1163,5 +1207,3 @@
  "version":"1.10",
  "width":50
 }
-
-
