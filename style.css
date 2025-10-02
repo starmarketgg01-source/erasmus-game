@@ -10,7 +10,7 @@ body, html {
   position: fixed;
   top: 0; left: 0;
   width: 100vw; height: 100vh;
-  background: url("images/intro-bg.jpg") center/cover no-repeat; /* <-- mets ton ciel bleu cartoon ici */
+  background: url("images/intro-bg.jpg") center/cover no-repeat; /* mets ton ciel bleu cartoon ici */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -20,8 +20,8 @@ body, html {
 
 #intro h1 {
   font-size: 64px;
-  color: yellow; /* jaune comme Start Game */
-  font-family: 'Press Start 2P', monospace;
+  color: yellow;
+  font-family: 'Press Start 2P', sans-serif;
   text-shadow: 3px 3px 0 #000;
   margin-bottom: 40px;
 }
@@ -31,8 +31,8 @@ body, html {
   padding: 15px 40px;
   border: none;
   border-radius: 12px;
-  background: linear-gradient(to right, green, white, red); /* drapeau Italie */
-  color: black;
+  background: red;
+  color: white;
   font-weight: bold;
   cursor: pointer;
   box-shadow: 0 5px #111;
@@ -51,7 +51,7 @@ body, html {
   height: 100vh;
 }
 
-/* --- Fenêtre interaction --- */
+/* Interaction box */
 #interaction-box {
   position: fixed;
   top: 0; left: 0;
@@ -95,7 +95,7 @@ body, html {
   z-index: 10000;
 }
 
-/* --- Contrôles mobiles --- */
+/* Contrôles mobiles */
 #mobile-controls {
   position: fixed;
   bottom: 20px;
@@ -155,10 +155,5 @@ body, html {
 
 .action-btn.red {
   background: crimson;
-  color: #fff;
-}
-
-.action-btn.green {
-  background: limegreen;
   color: #fff;
 }
