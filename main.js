@@ -112,19 +112,20 @@ window.onload = function () {
         }
       });
     }
-
+    
     // Objet layer VILLE
-    const villeLayer = map.getObjectLayer("VILLE");
-    if (villeLayer) {
-      villeLayer.objects.forEach(obj => {
-        villes.push({
-          name: obj.name,
-          x: obj.x,
-          y: obj.y,
-          radius: 150
-        });
-      });
-    }
+const villeLayer = map.getObjectLayer("VILLE");
+if (villeLayer) {
+  villeLayer.objects.forEach(obj => {
+    villes.push({
+      name: obj.name,
+      x: obj.x + (obj.width || 0) / 2,   // centre X
+      y: obj.y + (obj.height || 0) / 2,  // centre Y
+      radius: Math.max(obj.width || 0, obj.height || 0) / 2 || 150
+    });
+  });
+}
+
 
     // Colliders
     Object.entries(createdLayers).forEach(([name, layer]) => {
