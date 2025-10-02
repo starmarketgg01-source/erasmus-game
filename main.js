@@ -1,7 +1,14 @@
-// =========================================
-// Erasmus Game - main_full_final_v2_patched.js
-// Patched: debugCheckBlocking now ignores problematic tile indices so the player won't be falsely reported as blocked.
-// =========================================
+// =================================================
+// main_full_fixed_POI.js
+// Erasmus Game — Full main.js (complete) 
+// - Collision fixes (ignore problematic tile indices)
+// - Reduced player hitbox to avoid ghost collisions
+// - POI interactions (E key + mobile button)
+// - City banner appears when entering a city proximity zone
+// - Minimap, particles, mobile controls, debug utilities
+// - Designed to be drop-in replace for your previous main.js
+// =================================================
+
 window.onload = function () {
   // -------------------------------
   // CONFIG
@@ -35,26 +42,31 @@ window.onload = function () {
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   const mobileInput = { up: false, down: false, left: false, right: false, run: false };
 
-  // layer references for debug & operations
+  // layer refs and config
   let createdLayers = {};
   const collisionLayers = [
     "water","rails","bord de map","vegetation 1","vegetation 2","batiments 1","batiments 2"
   ];
 
-  // Quick-fix: tile indices that caused the bridge/path to be blocking
-  // Added both 2268 and 2269 because logs showed 2268 sometimes.
+  // Indices we want to ignore as collidable (bridge/road artifacts)
   const IGNORE_TILE_INDICES = [809, 1341, 2268, 2269];
+
+  // POI detection radius and city name radius (in pixels)
+  const POI_RADIUS = 40;
+  const VILLE_RADIUS_DEFAULT = 150;
 
   // -------------------------------
   // PRELOAD
   // -------------------------------
   function preload() {
+    // map & tilesets
     this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
     this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
     this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
     this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
+
+    // player sprite and audio
     this.load.spritesheet("player", "images/characters/player.png", { frameWidth: 144, frameHeight: 144 });
-    // audio (optional)
     this.load.audio("bgm", "audio/bgm.mp3");
     this.load.audio("sfx-open", "audio/open.mp3");
     this.load.audio("sfx-close", "audio/close.mp3");
@@ -71,7 +83,7 @@ window.onload = function () {
     const ts3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
     const tilesets = [ts1, ts2, ts3].filter(Boolean);
 
-    // create layers (store references)
+    // create all layers from the Tiled map and store them
     createdLayers = {};
     map.layers.forEach(ld => {
       const name = ld.name;
@@ -83,36 +95,39 @@ window.onload = function () {
       }
     });
 
-    // set depths for lampadaire layers (if present)
-    if (createdLayers["lampadaire + bancs + panneaux"]) {
-      createdLayers["lampadaire + bancs + panneaux"].setDepth(2000);
-    }
+    // set depth for decorative lamp layers (if present)
+    if (createdLayers["lampadaire + bancs + panneaux"]) createdLayers["lampadaire + bancs + panneaux"].setDepth(2000);
     if (createdLayers["lampadaire_base"]) createdLayers["lampadaire_base"].setDepth(3000);
-    if (createdLayers["lampadaire_haut"])  createdLayers["lampadaire_haut"].setDepth(9999);
+    if (createdLayers["lampadaire_haut"]) createdLayers["lampadaire_haut"].setDepth(9999);
 
-    // ------------------------------------------------------------------
-    // OBJECTS: POI & spawn
-    // ------------------------------------------------------------------
+    // -------------------------------
+    // OBJECTS: spawn & POI
+    // -------------------------------
     let spawnPoint = null;
     const objLayer = map.getObjectLayer("POI");
     if (objLayer && Array.isArray(objLayer.objects)) {
       objLayer.objects.forEach(obj => {
         const name = obj.name || "";
         const type = (obj.type || "").toLowerCase();
+
+        // spawn detection
         if (name.toLowerCase() === "spawn_avezzano" || type === "spawn") {
           if (!spawnPoint || name.toLowerCase() === "spawn_avezzano") spawnPoint = obj;
-        } else {
-          poiData.push({
-            x: obj.x,
-            y: obj.y,
-            title: obj.properties?.find(p => p.name === "title")?.value || obj.name || "POI",
-            description: obj.properties?.find(p => p.name === "text")?.value || "",
-            image: obj.properties?.find(p => p.name === "media")?.value || null
-          });
+          return;
         }
+
+        // POI collection
+        poiData.push({
+          x: obj.x,
+          y: obj.y,
+          title: obj.properties?.find(p => p.name === "title")?.value || obj.name || "POI",
+          description: obj.properties?.find(p => p.name === "text")?.value || "",
+          image: obj.properties?.find(p => p.name === "media")?.value || null
+        });
       });
     }
 
+    // fallback if spawn not found
     if (!spawnPoint && objLayer && Array.isArray(objLayer.objects)) {
       spawnPoint = objLayer.objects.find(o => (o.name || "").toLowerCase().includes("spawn")) || null;
     }
@@ -121,71 +136,72 @@ window.onload = function () {
       spawnPoint = { x: map.widthInPixels / 2, y: map.heightInPixels / 2 };
     }
 
-    // create player sprite
+    // create player
     player = this.physics.add.sprite(spawnPoint.x, spawnPoint.y, "player", 0);
     player.setOrigin(0.5, 1);
     player.setScale(0.20);
     player.setCollideWorldBounds(true);
 
-    // ------------------------------------------------------------------
-    // VILLES (object layer 'VILLE')
-    // ------------------------------------------------------------------
+    // Reduce the hitbox to avoid ghost collisions on thin bridges
+    player.body.setSize(player.width * 0.45, player.height * 0.32);
+    player.body.setOffset(player.width * 0.28, player.height * 0.68);
+
+    // -------------------------------
+    // VILLE OBJECT LAYER
+    // -------------------------------
     const villeLayer = map.getObjectLayer("VILLE");
     villes = [];
     if (villeLayer && Array.isArray(villeLayer.objects)) {
       villeLayer.objects.forEach(obj => {
         const cx = obj.x + (obj.width || 0) / 2;
         const cy = obj.y + (obj.height || 0) / 2;
-        const r = Math.max(obj.width || 0, obj.height || 0) / 2 || 150;
+        const r = Math.max(obj.width || 0, obj.height || 0) / 2 || VILLE_RADIUS_DEFAULT;
         villes.push({ name: obj.name || "Ville", x: cx, y: cy, radius: r });
       });
     }
 
-    // ------------------------------------------------------------------
-    // COLLISIONS: set collisions on layers but disable problematic indices
-    // ------------------------------------------------------------------
+    // -------------------------------
+    // COLLISIONS: mark collidable layers and disable problematic tile indices
+    // -------------------------------
     Object.entries(createdLayers).forEach(([name, layer]) => {
       if (collisionLayers.includes(name)) {
         try {
-          // make layer tiles collidable by default
           layer.setCollisionByExclusion([-1]);
-          // disable collisions for the specific indices (clean API call)
-          layer.setCollision(IGNORE_TILE_INDICES, false, true);
-          // ensure tiles flagged are cleared (redundant safety)
+          // disable collisions specifically for the IGNORE indices
+          try { layer.setCollision(IGNORE_TILE_INDICES, false, true); } catch(e) {}
+          // ensure per-tile collision flags removed
           layer.forEachTile(tile => {
             if (tile && IGNORE_TILE_INDICES.includes(tile.index)) {
               tile.setCollision(false, false, false, false);
             }
           });
-          if (tilesBlocking.length === 0) {
-    return; // pas de vrai blocage, on ignore
-}
-console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_INDICES);
+          console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_INDICES);
         } catch (err) {
           console.warn("Erreur en réglant collisions pour", name, err);
         }
       }
     });
 
-    // add physics colliders between player and collidable layers
+    // Add physics colliders for the collidable layers
     Object.entries(createdLayers).forEach(([name, layer]) => {
       if (collisionLayers.includes(name)) {
-        try { this.physics.add.collider(player, layer); } catch (e) {}
+        try { this.physics.add.collider(player, layer); } catch (e) { /* ignore */ }
       }
     });
     if (createdLayers["lampadaire + bancs + panneaux"]) {
       try { this.physics.add.collider(player, createdLayers["lampadaire + bancs + panneaux"]); } catch(e){}
     }
 
-    // ------------------------------------------------------------------
+    // -------------------------------
     // CAMERA + MINIMAP
-    // ------------------------------------------------------------------
+    // -------------------------------
     this.cameras.main.startFollow(player, true, 0.12, 0.12);
     this.cameras.main.setZoom(2.5);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
 
     const miniW = 220, miniH = 160, miniZoom = 0.22;
-    minimapCam = this.cameras.add(window.innerWidth - miniW - 12, 12, miniW, miniH).setZoom(miniZoom).startFollow(player);
+    minimapCam = this.cameras.add(window.innerWidth - miniW - 12, 12, miniW, miniH);
+    minimapCam.setZoom(miniZoom).startFollow(player);
 
     if (!isMobile) {
       miniFrameGfx = this.add.graphics();
@@ -197,13 +213,14 @@ console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_I
     playerMiniArrow = this.add.triangle(minimapCam.x + miniW / 2, minimapCam.y + miniH / 2, 0, 12, 12, 12, 6, 0, 0xff0000)
       .setScrollFactor(0).setDepth(11001);
 
-    // ------------------------------------------------------------------
+    // -------------------------------
     // INPUTS & DOM
-    // ------------------------------------------------------------------
+    // -------------------------------
     cursors = this.input.keyboard.createCursorKeys();
     shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
+    // Interaction box DOM element (overlay)
     interactionBox = document.getElementById("interaction-box");
     if (!interactionBox) {
       interactionBox = document.createElement("div");
@@ -214,9 +231,9 @@ console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_I
       interactionBox.style.display = "none";
     }
 
-    // ------------------------------------------------------------------
+    // -------------------------------
     // ANIMATIONS
-    // ------------------------------------------------------------------
+    // -------------------------------
     this.anims.create({ key: "down", frames: this.anims.generateFrameNumbers("player", { start: 0, end: 2 }), frameRate: 5, repeat: -1 });
     this.anims.create({ key: "left", frames: this.anims.generateFrameNumbers("player", { start: 3, end: 5 }), frameRate: 5, repeat: -1 });
     this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 8 }), frameRate: 5, repeat: -1 });
@@ -226,25 +243,27 @@ console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_I
     this.anims.create({ key: "idle-right", frames: [{ key: "player", frame: 7 }] });
     this.anims.create({ key: "idle-up", frames: [{ key: "player", frame: 10 }] });
 
-    // ------------------------------------------------------------------
+    // -------------------------------
     // PARTICLES (dust when running)
-    // ------------------------------------------------------------------
+    // -------------------------------
     const g = this.make.graphics({ x: 0, y: 0, add: false });
     g.fillStyle(0xffffff, 1).fillCircle(4, 4, 4);
     g.generateTexture("dust", 8, 8);
     const particles = this.add.particles("dust");
     dustEmitter = particles.createEmitter({
-      x: 0, y: 0, speed: { min: -40, max: 40 }, angle: { min: 200, max: 340 },
-      scale: { start: 0.27, end: 0 }, alpha: { start: 0.8, end: 0 }, lifespan: 400, on: false
+      x: 0, y: 0, speed: { min: -40, max: 40 },
+      angle: { min: 200, max: 340 },
+      scale: { start: 0.27, end: 0 }, alpha: { start: 0.8, end: 0 },
+      lifespan: 400, on: false
     });
     dustEmitter.startFollow(player, 0, -6);
 
-    // ------------------------------------------------------------------
+    // -------------------------------
     // MOBILE CONTROLS + BINDINGS
-    // ------------------------------------------------------------------
+    // -------------------------------
     bindMobileControls();
 
-    // INTRO BUTTON (if present in DOM)
+    // Intro button if present
     const introBtn = document.getElementById("introStart");
     if (introBtn) {
       introBtn.onclick = () => {
@@ -254,7 +273,7 @@ console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_I
         showCityBanner("Avezzano");
       };
     }
-  } // end create()
+  } // end create
 
   // -------------------------------
   // UPDATE
@@ -287,16 +306,14 @@ console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_I
     else {
       if (player.anims.currentAnim) {
         const dir = player.anims.currentAnim.key;
-        if (["up","down","left","right"].includes(dir)) {
-          player.anims.play("idle-" + dir, true);
-        }
+        if (["up","down","left","right"].includes(dir)) player.anims.play("idle-" + dir, true);
       }
     }
 
     player.setDepth(player.y);
     dustEmitter.on = isRunning && (Math.abs(vx) > 1 || Math.abs(vy) > 1);
 
-    // Minimap arrow
+    // Minimap arrow rotation + position
     if (player.anims.currentAnim) {
       const dir = player.anims.currentAnim.key;
       if (dir.includes("up")) playerMiniArrow.rotation = 0;
@@ -309,11 +326,11 @@ console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_I
       playerMiniArrow.y = minimapCam.worldView.y + player.y * minimapCam.zoom;
     }
 
-    // POI detection
+    // POI detection + interactions
     currentPOI = null;
     for (let poi of poiData) {
       const d = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
-      if (d < 40) {
+      if (d < POI_RADIUS) {
         currentPOI = poi;
         if (!isMobile) showPressE();
         break;
@@ -324,7 +341,7 @@ console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_I
       showInteraction(currentPOI);
     }
 
-    // Villes detection
+    // Villes proximity detection (show city banner when entering range)
     let inVille = null;
     for (let v of villes) {
       const d = Phaser.Math.Distance.Between(player.x, player.y, v.x, v.y);
@@ -335,7 +352,7 @@ console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_I
       showCityBanner(inVille);
     }
 
-    // Debug blocking check
+    // Debug check - only logs real blocking tiles (not the ignored indices)
     debugCheckBlocking();
   }
 
@@ -375,9 +392,9 @@ console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_I
     interactionBox.innerHTML = `
       <div class="interaction-content">
         <button id="closeBox">✖</button>
-        <h2>${poi.title || poi.name}</h2>
-        <p>${poi.description || ("Découvre " + (poi.title || poi.name))}</p>
-        ${imgPath ? `<img src="${imgPath}" alt="${poi.title || poi.name}">` : ""}
+        <h2>${poi.title}</h2>
+        <p>${poi.description}</p>
+        ${imgPath ? `<img src="${imgPath}" alt="${poi.title}">` : ""}
       </div>
     `;
     interactionBox.style.display = "flex";
@@ -411,7 +428,7 @@ console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_I
   }
 
   // -------------------------------
-  // DEBUG: tile-level blocking detection
+  // DEBUG: tile-level blocking detection (improved)
   // -------------------------------
   function debugCheckBlocking() {
     if (!player || !player.body) return;
@@ -429,37 +446,44 @@ console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_I
       if (!body.blocked[c.dir]) continue;
       const wx = player.x + c.dx;
       const wy = player.y + c.dy;
-      console.warn(`⚠️ Player blocked ${c.dir} — check (${Math.round(wx)}, ${Math.round(wy)})`);
-      const tilesBlocking = [];
-for (const [layerName, tLayer] of Object.entries(createdLayers)) {
+
+      // collect any real blocking tiles (exclude ignored indices)
+      const blockingTiles = [];
+      for (const [layerName, tLayer] of Object.entries(createdLayers)) {
         try {
           const tile = tLayer.getTileAtWorldXY(wx, wy, true);
           if (tile && tile.index !== -1) {
-    const ignored = IGNORE_TILE_INDICES.includes(tile.index);
-    if (!ignored && tile.collides) {
-      tilesBlocking.push({ layerName, index: tile.index });
-    }
-            // Skip tiles that are intentionally non-blocking
+            const tileCollides = tile.collides || (tile.properties && tile.properties.collides) || false;
             if (IGNORE_TILE_INDICES.includes(tile.index)) {
-              // For debugging clarity, still log they are ignored
-              if (tilesBlocking.length === 0) {
-    return; // pas de vrai blocage, on ignore
-}
-console.log(`  → layer "${layerName}" a tile index=${tile.index} at (${tile.x},${tile.y}) (IGNORED)`, tile.properties || {}, "collides?", tile.collides);
-              continue;
+              // log as ignored (useful to see leftover artifacts)
+              console.log(`  → layer "${layerName}" a tile index=${tile.index} at (${tile.x},${tile.y}) (IGNORED)`, tile.properties || {}, "collides?", tileCollides);
+            } else if (tileCollides) {
+              blockingTiles.push({ layerName, tile });
+            } else {
+              // non-collide tile, fine.
+              // console.log(`  → layer "${layerName}" non-collide tile index=${tile.index} at (${tile.x},${tile.y})`);
             }
-            if (tilesBlocking.length === 0) {
-    return; // pas de vrai blocage, on ignore
-}
-console.log(`  → layer "${layerName}" a tile index=${tile.index} at (${tile.x},${tile.y})`, tile.properties || {}, "collides?", tile.collides);
           }
-        } catch (err) {}
+        } catch (err) {
+          // skip layer read errors
+        }
+      }
+
+      if (blockingTiles.length > 0) {
+        console.warn(`⚠️ Player blocked ${c.dir} — check (${Math.round(wx)}, ${Math.round(wy)})`);
+        for (const b of blockingTiles) {
+          const t = b.tile;
+          console.log(`    → blocking on layer "${b.layerName}" tile index=${t.index} at (${t.x},${t.y})`, t.properties);
+        }
+      } else {
+        // no real blocking tile found -> probably a physics edge case; log lightly once
+        console.log(`(debug) faux blocage détecté ${c.dir} à (${Math.round(wx)}, ${Math.round(wy)}) — aucune tuile collidable trouvée (ignorable).`);
       }
     }
   }
 
   // -------------------------------
-  // MOBILE CONTROLS (touch, D-pad + actions)
+  // MOBILE CONTROLS
   // -------------------------------
   function bindMobileControls() {
     const bindButton = (id, onDown, onUp) => {
@@ -488,6 +512,6 @@ console.log(`  → layer "${layerName}" a tile index=${tile.index} at (${tile.x}
   }
 
   // -------------------------------
-  // end window.onload
+  // End window.onload
   // -------------------------------
-};
+}; // window.onload end
