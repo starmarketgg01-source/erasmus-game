@@ -1,88 +1,54 @@
 /* =============================
-   RESET
+   GENERAL
 ============================= */
 html, body {
   margin: 0;
   padding: 0;
+  background: #000;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  overflow: hidden;
+}
+
+#game {
   width: 100%;
   height: 100%;
-  overflow: hidden;
-  background: #000;
-  font-family: "Arial", sans-serif;
 }
 
 /* =============================
-   CONTENEUR JEU
-============================= */
-#game {
-  width: 100vw;
-  height: 100vh;
-  background: #000;
-  z-index: 1;
-}
-
-/* =============================
-   INTRO SCREEN
+   INTRO
 ============================= */
 #intro {
   position: fixed;
   top: 0; left: 0;
   width: 100%; height: 100%;
-  background: linear-gradient(135deg, #0044cc, #0099ff);
+  background: rgba(0,0,0,0.9);
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  z-index: 10000;
+  justify-content: center;
+  z-index: 20000;
 }
 
 #intro h1 {
-  font-size: 4em;
-  font-weight: bold;
+  font-size: 3em;
+  margin-bottom: 20px;
   color: yellow;
-  text-shadow: 4px 4px 0px #000;
-  margin-bottom: 30px;
-  letter-spacing: 2px;
+  text-shadow: 2px 2px 0 #000;
 }
 
 #intro button {
-  font-size: 1.5em;
-  padding: 14px 35px;
-  background: red;
-  color: white;
+  font-size: 1.4em;
+  padding: 10px 24px;
+  border-radius: 12px;
   border: none;
-  border-radius: 8px;
+  background: #008CFF;
+  color: #fff;
   cursor: pointer;
-  font-weight: bold;
-  box-shadow: 0 4px #222;
-  transition: transform 0.2s ease, background 0.2s ease;
+  transition: transform 0.12s ease;
 }
-#intro button:hover {
-  background: darkred;
-  transform: scale(1.05);
-}
-
-/* =============================
-   BANNIÈRE VILLE
-============================= */
-#city-banner {
-  position: fixed;
-  top: -100px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0,0,0,0.85);
-  color: yellow;
-  font-size: 2em;
-  font-weight: bold;
-  padding: 12px 24px;
-  border-radius: 10px;
-  transition: top 0.6s ease-in-out;
-  z-index: 9999;
-  text-shadow: 2px 2px 0 #000;
-}
-#city-banner.show {
-  top: 30px;
-}
+#intro button:hover { transform: scale(1.05); }
+#intro button:active { transform: scale(0.95); }
 
 /* =============================
    INTERACTION BOX
@@ -97,6 +63,7 @@ html, body {
   justify-content: center;
   z-index: 10001;
   backdrop-filter: blur(3px);
+  overflow: hidden; /* ✅ évite le scroll horizontal */
 }
 
 #interaction-box .interaction-content {
@@ -104,172 +71,90 @@ html, body {
   color: #fff;
   padding: 20px;
   border-radius: 12px;
-  max-width: 90%;
+  max-width: 900px;
+  width: 90%;
   max-height: 85%;
   overflow-y: auto;
+  overflow-x: hidden;
   text-align: center;
   position: relative;
+  box-sizing: border-box;
   box-shadow: 0 6px 20px rgba(0,0,0,0.6);
 }
 
-#interaction-box h2 {
-  color: yellow;
-  margin-bottom: 12px;
-  font-size: 1.6em;
-}
+#interaction-box h2 { word-break: break-word; }
+#interaction-box p { margin-bottom: 15px; line-height: 1.4; font-size: 1.1em; }
+#interaction-box img { max-width: 100%; margin-top: 15px; border-radius: 6px; }
 
-#interaction-box p {
-  margin-bottom: 15px;
-  line-height: 1.4;
-  font-size: 1.1em;
-}
-
-#interaction-box img {
-  max-width: 100%;
-  max-height: 60vh;
-  border-radius: 10px;
-  margin-top: 10px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-}
-
-/* Croix de fermeture */
 #interaction-box #closeBox {
   position: absolute;
-  top: -20px; 
-  right: -20px;
+  top: 12px; right: 12px;
   background: crimson;
   border: none;
   color: white;
-  font-size: 28px;
+  font-size: 22px;
   border-radius: 50%;
-  width: 50px; height: 50px;
+  width: 42px; height: 42px;
   cursor: pointer;
   z-index: 10002;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   box-shadow: 0 4px #111;
+  transition: transform 0.12s ease;
 }
-#interaction-box #closeBox:hover {
-  background: darkred;
+#interaction-box #closeBox:hover { transform: scale(1.05); }
+#interaction-box #closeBox:active { transform: scale(0.95); }
+
+/* =============================
+   FADE OVERLAY (transition ville)
+============================= */
+#fade-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  background: #000;
+  opacity: 0;
+  transition: opacity 420ms ease;
+  z-index: 10002;
 }
+#fade-overlay.active { opacity: 1; }
+
+/* =============================
+   CITY BANNER
+============================= */
+#city-banner {
+  position: fixed;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.85);
+  color: yellow;
+  font-size: 2em;
+  font-weight: bold;
+  padding: 12px 24px;
+  border-radius: 10px;
+  transition: top 0.6s ease-in-out, opacity 300ms ease;
+  z-index: 10001;
+  text-shadow: 2px 2px 0 #000;
+  opacity: 0;
+}
+#city-banner.show { top: 30px; opacity: 1; }
 
 /* =============================
    MOBILE CONTROLS
 ============================= */
 #mobile-controls {
   position: fixed;
-  bottom: 20px;
-  left: 0; right: 0;
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  pointer-events: none; /* cliquer uniquement sur boutons */
-  z-index: 9000;
+  bottom: 20px; left: 20px;
+  z-index: 15000;
 }
 
-/* Croix directionnelle style GameBoy */
-#dpad {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-left: 20px;
-  pointer-events: auto;
-}
-.dpad-middle {
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-}
-.dpad-btn {
-  width: 70px; height: 70px;
-  border-radius: 50%;
-  border: 3px solid #111;
-  background: #444;
-  color: white;
-  font-size: 28px;
-  font-weight: bold;
-  margin: 5px;
-  pointer-events: auto;
-  box-shadow: 0 5px #222;
-  transition: transform 0.1s ease;
-}
-.dpad-btn:active {
-  transform: scale(0.9);
-  background: #666;
-}
-
-/* Boutons actions (E / Run) */
-#action-buttons {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-right: 20px;
-  gap: 20px;
-  pointer-events: auto;
-}
-.action-btn {
-  width: 80px; height: 80px;
-  border-radius: 50%;
-  border: 3px solid #111;
-  font-size: 26px;
-  font-weight: bold;
-  color: white;
-  cursor: pointer;
-  box-shadow: 0 5px #222;
-  transition: transform 0.1s ease;
-}
-.action-btn:active {
-  transform: scale(0.9);
-}
-.action-btn.red {
-  background: crimson;
-}
-.action-btn.green {
-  background: green;
-}
-
-/* =============================
-   RESPONSIVE
-============================= */
-@media (max-width: 768px) {
-  #intro h1 {
-    font-size: 2.5em;
-  }
-  #intro button {
-    font-size: 1.2em;
-    padding: 10px 25px;
-  }
-  #city-banner {
-    font-size: 1.4em;
-  }
-  .dpad-btn {
-    width: 60px; height: 60px;
-    font-size: 22px;
-  }
-  .action-btn {
-    width: 70px; height: 70px;
-    font-size: 20px;
-  }
-}
-
-@media (max-width: 480px) {
-  #intro h1 {
-    font-size: 2em;
-  }
-  #intro button {
-    font-size: 1em;
-    padding: 8px 20px;
-  }
-  #city-banner {
-    font-size: 1.2em;
-  }
-  .dpad-btn {
-    width: 55px; height: 55px;
-    font-size: 20px;
-  }
-  .action-btn {
-    width: 65px; height: 65px;
-    font-size: 18px;
-  }
+#mobile-controls button {
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  border: 1px solid #fff;
+  padding: 12px;
+  margin: 4px;
+  border-radius: 8px;
+  font-size: 1.2em;
 }
