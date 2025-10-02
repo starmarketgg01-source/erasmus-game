@@ -153,13 +153,6 @@ if (villeLayer) {
       miniFrameGfx = null;
     }
 
-    playerMiniArrow = this.add.triangle(
-      minimapCam.x + miniW / 2,
-      minimapCam.y + miniH / 2,
-      0, 12, 12, 12, 6, 0,
-      0xff0000
-    ).setScrollFactor(0).setDepth(11001);
-
     // Contrôles
     cursors = this.input.keyboard.createCursorKeys();
     shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
