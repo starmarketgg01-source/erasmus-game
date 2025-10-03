@@ -1,18 +1,25 @@
-// =================================================
-// main_full_fixed_POI.js
-// Erasmus Game — Full main.js (complete) 
-// - Collision fixes (ignore problematic tile indices)
-// - Reduced player hitbox to avoid ghost collisions
-// - POI interactions (E key + mobile button)
-// - City banner appears when entering a city proximity zone
-// - Minimap, particles, mobile controls, debug utilities
-// - Designed to be drop-in replace for your previous main.js
-// =================================================
+// =======================================================
+// main_full.js - Erasmus Game (complete, corrected)
+// - Forces spawn at "spawn_avezzano" if present
+// - Collision fixes: ignores specific tile indices that produced ghost blocking
+// - POI interactions: PC = E, Mobile = bouton E
+// - City banner: centered, slide + fade in/out
+// - Minimap, mobile controls (D-pad + action buttons), particle dust when running
+// - Reduced player hitbox to avoid ghost collisions on narrow bridges
+// - Debugging logs for collisions are DISABLED by default (can be enabled by setting debugMode = true)
+// - Drop-in replacement for your previous main.js file
+// =======================================================
 
 window.onload = function () {
   // -------------------------------
-  // CONFIG
+  // CONFIG & GLOBALS
   // -------------------------------
+  const IGNORE_TILE_INDICES = [809, 1341, 2268, 2269]; // tile indices to ignore for collision artifacts
+  const POI_RADIUS = 40;         // radius to trigger POI interaction
+  const VILLE_DEFAULT_RADIUS = 150;
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  let debugMode = false; // set to true if you want verbose blocking logs
+
   const config = {
     type: Phaser.AUTO,
     width: window.innerWidth,
@@ -27,9 +34,7 @@ window.onload = function () {
 
   const game = new Phaser.Game(config);
 
-  // -------------------------------
-  // GLOBALS
-  // -------------------------------
+  // globals used across functions
   let map, player;
   let cursors, shiftKey, interactionKey;
   let minimapCam, playerMiniArrow, miniFrameGfx;
@@ -39,33 +44,20 @@ window.onload = function () {
   let villes = [];
   let currentVille = null;
   let interactionBox;
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const mobileInput = { up: false, down: false, left: false, right: false, run: false };
-
-  // layer refs and config
   let createdLayers = {};
-  const collisionLayers = [
-    "water","rails","bord de map","vegetation 1","vegetation 2","batiments 1","batiments 2"
-  ];
-
-  // Indices we want to ignore as collidable (bridge/road artifacts)
-  const IGNORE_TILE_INDICES = [809, 1341, 2268, 2269];
-
-  // POI detection radius and city name radius (in pixels)
-  const POI_RADIUS = 40;
-  const VILLE_RADIUS_DEFAULT = 150;
+  let mobileInput = { up: false, down: false, left: false, right: false, run: false };
 
   // -------------------------------
   // PRELOAD
   // -------------------------------
   function preload() {
-    // map & tilesets
+    // Tilemap & tilesets
     this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
     this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
     this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
     this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
-    // player sprite and audio
+    // Player sprite + audio (optional)
     this.load.spritesheet("player", "images/characters/player.png", { frameWidth: 144, frameHeight: 144 });
     this.load.audio("bgm", "audio/bgm.mp3");
     this.load.audio("sfx-open", "audio/open.mp3");
@@ -78,12 +70,20 @@ window.onload = function () {
   function create() {
     map = this.make.tilemap({ key: "map" });
 
-    const ts1 = map.addTilesetImage("tileset_part1.png", "tileset_part1");
-    const ts2 = map.addTilesetImage("tileset_part2.png", "tileset_part2");
-    const ts3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
-    const tilesets = [ts1, ts2, ts3].filter(Boolean);
+    // attempt to add tilesets by the names used in your Tiled map
+    const tilesets = [];
+    tryAddTileset(map, "tileset_part1.png", "tileset_part1");
+    tryAddTileset(map, "tileset_part2.png", "tileset_part2");
+    tryAddTileset(map, "tileset_part3.png", "tileset_part3");
 
-    // create all layers from the Tiled map and store them
+    function tryAddTileset(mp, filename, key) {
+      try {
+        const ts = mp.addTilesetImage(filename, key) || mp.addTilesetImage(key);
+        if (ts) tilesets.push(ts);
+      } catch (e) { /* ignore missing */ }
+    }
+
+    // create all layers from the TMJ
     createdLayers = {};
     map.layers.forEach(ld => {
       const name = ld.name;
@@ -91,11 +91,11 @@ window.onload = function () {
         const layer = map.createLayer(name, tilesets, 0, 0);
         createdLayers[name] = layer;
       } catch (err) {
-        console.warn("Erreur création layer", name, err);
+        console.warn("create layer failed:", name);
       }
     });
 
-    // set depth for decorative lamp layers (if present)
+    // set depths for decorative lamp layers if present
     if (createdLayers["lampadaire + bancs + panneaux"]) createdLayers["lampadaire + bancs + panneaux"].setDepth(2000);
     if (createdLayers["lampadaire_base"]) createdLayers["lampadaire_base"].setDepth(3000);
     if (createdLayers["lampadaire_haut"]) createdLayers["lampadaire_haut"].setDepth(9999);
@@ -107,16 +107,15 @@ window.onload = function () {
     const objLayer = map.getObjectLayer("POI");
     if (objLayer && Array.isArray(objLayer.objects)) {
       objLayer.objects.forEach(obj => {
-        const name = obj.name || "";
-        const type = (obj.type || "").toLowerCase();
+        const name = (obj.name || "").toString();
+        const type = (obj.type || "").toString().toLowerCase();
 
-        // spawn detection
         if (name.toLowerCase() === "spawn_avezzano" || type === "spawn") {
           if (!spawnPoint || name.toLowerCase() === "spawn_avezzano") spawnPoint = obj;
           return;
         }
 
-        // POI collection
+        // Collect POI data
         poiData.push({
           x: obj.x,
           y: obj.y,
@@ -127,81 +126,91 @@ window.onload = function () {
       });
     }
 
-    // fallback if spawn not found
+    // fallback: find any spawn object with 'spawn' in its name
     if (!spawnPoint && objLayer && Array.isArray(objLayer.objects)) {
-      spawnPoint = objLayer.objects.find(o => (o.name || "").toLowerCase().includes("spawn")) || null;
+      spawnPoint = objLayer.objects.find(o => (o.name || "").toString().toLowerCase().includes("spawn")) || null;
     }
     if (!spawnPoint) {
-      console.warn("⚠️ spawn_avezzano introuvable — fallback à la moitié de la carte");
+      console.warn("spawn_avezzano not found. Falling back to map center.");
       spawnPoint = { x: map.widthInPixels / 2, y: map.heightInPixels / 2 };
     }
 
-    // create player
+    // create player at spawn
     player = this.physics.add.sprite(spawnPoint.x, spawnPoint.y, "player", 0);
     player.setOrigin(0.5, 1);
     player.setScale(0.20);
     player.setCollideWorldBounds(true);
 
-    // Reduce the hitbox to avoid ghost collisions on thin bridges
-    player.body.setSize(player.width * 0.45, player.height * 0.32);
-    player.body.setOffset(player.width * 0.28, player.height * 0.68);
+    // reduce hitbox to avoid ghost collisions on thin bridges/paths
+    try {
+      player.body.setSize(player.width * 0.45, player.height * 0.32);
+      player.body.setOffset(player.width * 0.28, player.height * 0.68);
+    } catch (e) {
+      // older Phaser builds might not allow setSize on body immediately
+    }
 
     // -------------------------------
     // VILLE OBJECT LAYER
     // -------------------------------
-    const villeLayer = map.getObjectLayer("VILLE");
     villes = [];
+    const villeLayer = map.getObjectLayer("VILLE");
     if (villeLayer && Array.isArray(villeLayer.objects)) {
       villeLayer.objects.forEach(obj => {
         const cx = obj.x + (obj.width || 0) / 2;
         const cy = obj.y + (obj.height || 0) / 2;
-        const r = Math.max(obj.width || 0, obj.height || 0) / 2 || VILLE_RADIUS_DEFAULT;
+        const r = Math.max(obj.width || 0, obj.height || 0) / 2 || VILLE_DEFAULT_RADIUS;
         villes.push({ name: obj.name || "Ville", x: cx, y: cy, radius: r });
       });
     }
 
     // -------------------------------
-    // COLLISIONS: mark collidable layers and disable problematic tile indices
+    // COLLISIONS: set collisions on intended layers and disable specific tile indices
     // -------------------------------
+    const collisionLayerNames = ["water","rails","bord de map","vegetation 1","vegetation 2","batiments 1","batiments 2"];
     Object.entries(createdLayers).forEach(([name, layer]) => {
-      if (collisionLayers.includes(name)) {
+      if (collisionLayerNames.includes(name) && layer) {
         try {
+          // mark collidable tiles (everything except -1)
           layer.setCollisionByExclusion([-1]);
-          // disable collisions specifically for the IGNORE indices
-          try { layer.setCollision(IGNORE_TILE_INDICES, false, true); } catch(e) {}
-          // ensure per-tile collision flags removed
-          layer.forEachTile(tile => {
-            if (tile && IGNORE_TILE_INDICES.includes(tile.index)) {
-              tile.setCollision(false, false, false, false);
-            }
-          });
-          console.log(`Collisions réglées sur layer "${name}". Ignorés:`, IGNORE_TILE_INDICES);
+
+          // turn off collision for known problem indices (bridge artifacts)
+          try {
+            layer.setCollision(IGNORE_TILE_INDICES, false, true);
+          } catch (e) {
+            // setCollision optional support - ignore errors
+          }
+
+          // extra safety: clear collision flags tile-by-tile if indices match
+          try {
+            layer.forEachTile(tile => {
+              if (tile && IGNORE_TILE_INDICES.includes(tile.index)) {
+                try { tile.setCollision(false, false, false, false); } catch(e){}
+              }
+            });
+          } catch (e) { /* ignore if layer.forEachTile not allowed */ }
+
+          // add physics collider between player and layer
+          try { this.physics.add.collider(player, layer); } catch (e) {}
         } catch (err) {
-          console.warn("Erreur en réglant collisions pour", name, err);
+          console.warn("Error setting collisions for", name);
         }
       }
     });
 
-    // Add physics colliders for the collidable layers
-    Object.entries(createdLayers).forEach(([name, layer]) => {
-      if (collisionLayers.includes(name)) {
-        try { this.physics.add.collider(player, layer); } catch (e) { /* ignore */ }
-      }
-    });
+    // also collide with the decorative layer (lampadaire + bancs + panneaux) to prevent walking through benches
     if (createdLayers["lampadaire + bancs + panneaux"]) {
-      try { this.physics.add.collider(player, createdLayers["lampadaire + bancs + panneaux"]); } catch(e){}
+      try { this.physics.add.collider(player, createdLayers["lampadaire + bancs + panneaux"]); } catch (e) {}
     }
 
     // -------------------------------
-    // CAMERA + MINIMAP
+    // CAMERA & MINIMAP
     // -------------------------------
     this.cameras.main.startFollow(player, true, 0.12, 0.12);
     this.cameras.main.setZoom(2.5);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
 
     const miniW = 220, miniH = 160, miniZoom = 0.22;
-    minimapCam = this.cameras.add(window.innerWidth - miniW - 12, 12, miniW, miniH);
-    minimapCam.setZoom(miniZoom).startFollow(player);
+    minimapCam = this.cameras.add(window.innerWidth - miniW - 12, 12, miniW, miniH).setZoom(miniZoom).startFollow(player);
 
     if (!isMobile) {
       miniFrameGfx = this.add.graphics();
@@ -214,13 +223,16 @@ window.onload = function () {
       .setScrollFactor(0).setDepth(11001);
 
     // -------------------------------
-    // INPUTS & DOM
+    // INPUTS & DOM elements
     // -------------------------------
     cursors = this.input.keyboard.createCursorKeys();
     shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-    // Interaction box DOM element (overlay)
+    // allow toggling debug mode with D (useful for you)
+    this.input.keyboard.on('keydown-D', () => { debugMode = !debugMode; console.log("debugMode:", debugMode); });
+
+    // interactionBox: reuse if present else create
     interactionBox = document.getElementById("interaction-box");
     if (!interactionBox) {
       interactionBox = document.createElement("div");
@@ -251,32 +263,35 @@ window.onload = function () {
     g.generateTexture("dust", 8, 8);
     const particles = this.add.particles("dust");
     dustEmitter = particles.createEmitter({
-      x: 0, y: 0, speed: { min: -40, max: 40 },
+      x: 0, y: 0,
+      speed: { min: -40, max: 40 },
       angle: { min: 200, max: 340 },
-      scale: { start: 0.27, end: 0 }, alpha: { start: 0.8, end: 0 },
-      lifespan: 400, on: false
+      scale: { start: 0.27, end: 0 },
+      alpha: { start: 0.8, end: 0 },
+      lifespan: 400,
+      on: false
     });
     dustEmitter.startFollow(player, 0, -6);
 
     // -------------------------------
-    // MOBILE CONTROLS + BINDINGS
+    // MOBILE CONTROLS binding
     // -------------------------------
     bindMobileControls();
 
-    // Intro button if present
+    // intro button (if present)
     const introBtn = document.getElementById("introStart");
     if (introBtn) {
       introBtn.onclick = () => {
         const intro = document.getElementById("intro");
         if (intro) intro.style.display = "none";
-        try { document.getElementById("bgm")?.play(); } catch(_) {}
+        try { document.getElementById("bgm")?.play(); } catch (_) { }
         showCityBanner("Avezzano");
       };
     }
   } // end create
 
   // -------------------------------
-  // UPDATE
+  // UPDATE (loop)
   // -------------------------------
   function update() {
     if (!player) return;
@@ -306,15 +321,15 @@ window.onload = function () {
     else {
       if (player.anims.currentAnim) {
         const dir = player.anims.currentAnim.key;
-        if (["up","down","left","right"].includes(dir)) player.anims.play("idle-" + dir, true);
+        if (["up", "down", "left", "right"].includes(dir)) player.anims.play("idle-" + dir, true);
       }
     }
 
     player.setDepth(player.y);
     dustEmitter.on = isRunning && (Math.abs(vx) > 1 || Math.abs(vy) > 1);
 
-    // Minimap arrow rotation + position
-    if (player.anims.currentAnim) {
+    // update minimap arrow rotation & position
+    if (player.anims.currentAnim && playerMiniArrow) {
       const dir = player.anims.currentAnim.key;
       if (dir.includes("up")) playerMiniArrow.rotation = 0;
       else if (dir.includes("right")) playerMiniArrow.rotation = Phaser.Math.DegToRad(90);
@@ -326,7 +341,7 @@ window.onload = function () {
       playerMiniArrow.y = minimapCam.worldView.y + player.y * minimapCam.zoom;
     }
 
-    // POI detection + interactions
+    // POI detection
     currentPOI = null;
     for (let poi of poiData) {
       const d = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
@@ -341,7 +356,7 @@ window.onload = function () {
       showInteraction(currentPOI);
     }
 
-    // Villes proximity detection (show city banner when entering range)
+    // Villes: check entering a city area
     let inVille = null;
     for (let v of villes) {
       const d = Phaser.Math.Distance.Between(player.x, player.y, v.x, v.y);
@@ -352,12 +367,13 @@ window.onload = function () {
       showCityBanner(inVille);
     }
 
-    // Debug check - only logs real blocking tiles (not the ignored indices)
-    debugCheckBlocking();
+    // Note: debugCheckBlocking is intentionally DISABLED by default because it spams console.
+    // If you need it, toggle debugMode = true manually (or press 'D' if you added that binding).
+    if (debugMode) debugCheckBlocking();
   }
 
   // -------------------------------
-  // HELPERS
+  // HELPERS / UI / INTERACTIONS
   // -------------------------------
   function playAnim(key, isRunning) {
     if (!player.anims.isPlaying || player.anims.currentAnim?.key !== key) {
@@ -372,9 +388,15 @@ window.onload = function () {
       e.id = "pressE";
       e.innerText = "Appuie sur E";
       Object.assign(e.style, {
-        position: "absolute", top: "20px", left: "50%", transform: "translateX(-50%)",
-        background: "rgba(0,0,0,0.7)", color: "#fff", padding: "6px 12px",
-        borderRadius: "6px", zIndex: "9999"
+        position: "absolute",
+        top: "20px",
+        left: "50%",
+        transform: "translateX(-50%)",
+        background: "rgba(0,0,0,0.7)",
+        color: "#fff",
+        padding: "6px 12px",
+        borderRadius: "6px",
+        zIndex: "9999"
       });
       document.body.appendChild(e);
     }
@@ -388,47 +410,52 @@ window.onload = function () {
   function showInteraction(poi) {
     let imgPath = poi.image;
     if (imgPath && !imgPath.startsWith("images/")) imgPath = "images/" + imgPath;
-    try { document.getElementById("sfx-open")?.play(); } catch(_) {}
+    try { document.getElementById("sfx-open")?.play(); } catch (_) { }
     interactionBox.innerHTML = `
       <div class="interaction-content">
         <button id="closeBox">✖</button>
-        <h2>${poi.title}</h2>
-        <p>${poi.description}</p>
-        ${imgPath ? `<img src="${imgPath}" alt="${poi.title}">` : ""}
+        <h2>${escapeHtml(poi.title)}</h2>
+        <p>${escapeHtml(poi.description)}</p>
+        ${imgPath ? `<img src="${imgPath}" alt="${escapeHtml(poi.title)}">` : ""}
       </div>
     `;
     interactionBox.style.display = "flex";
     const closeBtn = document.getElementById("closeBox");
     if (closeBtn) closeBtn.onclick = () => {
       interactionBox.style.display = "none";
-      try { document.getElementById("sfx-close")?.play(); } catch(_) {}
+      try { document.getElementById("sfx-close")?.play(); } catch (_) { }
     };
   }
 
   function showCityBanner(name) {
+    // create banner if needed (styled by your CSS file)
     let banner = document.getElementById("city-banner");
     if (!banner) {
       banner = document.createElement("div");
       banner.id = "city-banner";
       document.body.appendChild(banner);
     }
+    // create overlay for fade effect if missing
     let overlay = document.getElementById("fade-overlay");
     if (!overlay) {
       overlay = document.createElement("div");
       overlay.id = "fade-overlay";
       document.body.appendChild(overlay);
     }
+
+    // apply fade + slide in/out using CSS classes (your CSS already defines transitions)
     overlay.classList.add("active");
     setTimeout(() => {
       banner.innerText = name;
       banner.classList.add("show");
       overlay.classList.remove("active");
+      // hide after 4 seconds
       setTimeout(() => banner.classList.remove("show"), 4000);
     }, 420);
   }
 
   // -------------------------------
-  // DEBUG: tile-level blocking detection (improved)
+  // DEBUG: blocking detection (can be toggled)
   // -------------------------------
   function debugCheckBlocking() {
     if (!player || !player.body) return;
@@ -446,62 +473,55 @@ window.onload = function () {
       if (!body.blocked[c.dir]) continue;
       const wx = player.x + c.dx;
       const wy = player.y + c.dy;
-
-      // collect any real blocking tiles (exclude ignored indices)
       const blockingTiles = [];
       for (const [layerName, tLayer] of Object.entries(createdLayers)) {
         try {
           const tile = tLayer.getTileAtWorldXY(wx, wy, true);
           if (tile && tile.index !== -1) {
             const tileCollides = tile.collides || (tile.properties && tile.properties.collides) || false;
-            if (IGNORE_TILE_INDICES.includes(tile.index)) {
-              // log as ignored (useful to see leftover artifacts)
-              console.log(`  → layer "${layerName}" a tile index=${tile.index} at (${tile.x},${tile.y}) (IGNORED)`, tile.properties || {}, "collides?", tileCollides);
-            } else if (tileCollides) {
+            if (!IGNORE_TILE_INDICES.includes(tile.index) && tileCollides) {
               blockingTiles.push({ layerName, tile });
-            } else {
-              // non-collide tile, fine.
-              // console.log(`  → layer "${layerName}" non-collide tile index=${tile.index} at (${tile.x},${tile.y})`);
+            } else if (IGNORE_TILE_INDICES.includes(tile.index)) {
+              // ignored tile (was causing false positive), only log if debugMode true
+              if (debugMode) console.log(`IGNORED tile ${tile.index} on layer ${layerName} at (${tile.x},${tile.y})`);
             }
           }
-        } catch (err) {
-          // skip layer read errors
-        }
+        } catch (err) { /* ignore layer read errors */ }
       }
 
       if (blockingTiles.length > 0) {
-        console.warn(`⚠️ Player blocked ${c.dir} — check (${Math.round(wx)}, ${Math.round(wy)})`);
+        console.warn(`Player blocked ${c.dir} — check (${Math.round(wx)}, ${Math.round(wy)})`);
         for (const b of blockingTiles) {
           const t = b.tile;
-          console.log(`    → blocking on layer "${b.layerName}" tile index=${t.index} at (${t.x},${t.y})`, t.properties);
+          console.log(` → blocking on layer "${b.layerName}" tile index=${t.index} at (${t.x},${t.y})`, t.properties);
         }
       } else {
-        // no real blocking tile found -> probably a physics edge case; log lightly once
-        console.log(`(debug) faux blocage détecté ${c.dir} à (${Math.round(wx)}, ${Math.round(wy)}) — aucune tuile collidable trouvée (ignorable).`);
+        if (debugMode) console.log(`Faux blocage detecté ${c.dir} à (${Math.round(wx)}, ${Math.round(wy)}) — aucune tuile collidable trouvée.`);
       }
     }
   }
 
   // -------------------------------
-  // MOBILE CONTROLS
+  // MOBILE CONTROLS binding (D-pad + actions)
   // -------------------------------
   function bindMobileControls() {
     const bindButton = (id, onDown, onUp) => {
       const el = document.getElementById(id);
       if (!el) return;
       const start = (e) => { e.preventDefault(); onDown && onDown(); };
-      const end   = (e) => { e.preventDefault(); onUp && onUp();   };
+      const end = (e) => { e.preventDefault(); onUp && onUp(); };
       el.addEventListener("touchstart", start, { passive: false });
-      el.addEventListener("touchend", end,   { passive: false });
+      el.addEventListener("touchend", end, { passive: false });
       el.addEventListener("mousedown", start);
       el.addEventListener("mouseup", end);
       el.addEventListener("mouseleave", end);
     };
-    bindButton("btn-up",    () => mobileInput.up = true,    () => mobileInput.up = false);
-    bindButton("btn-down",  () => mobileInput.down = true,  () => mobileInput.down = false);
-    bindButton("btn-left",  () => mobileInput.left = true,  () => mobileInput.left = false);
+
+    bindButton("btn-up", () => mobileInput.up = true, () => mobileInput.up = false);
+    bindButton("btn-down", () => mobileInput.down = true, () => mobileInput.down = false);
+    bindButton("btn-left", () => mobileInput.left = true, () => mobileInput.left = false);
     bindButton("btn-right", () => mobileInput.right = true, () => mobileInput.right = false);
-    bindButton("btn-run",   () => mobileInput.run = true,   () => mobileInput.run = false);
+    bindButton("btn-run", () => mobileInput.run = true, () => mobileInput.run = false);
 
     const eBtn = document.getElementById("btn-interact");
     if (eBtn) {
@@ -512,6 +532,19 @@ window.onload = function () {
   }
 
   // -------------------------------
-  // End window.onload
+  // UTIL: escapeHtml to avoid injection in POI text
   // -------------------------------
-}; // window.onload end
+  function escapeHtml(text) {
+    if (!text) return "";
+    return text.toString().replace(/[&<>"'`=\/]/g, function (s) {
+      return ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;',
+        "'": '&#39;', '/': '&#x2F;', '`': '&#x60;', '=': '&#x3D;'
+      })[s];
+    });
+  }
+
+  // -------------------------------
+  // END window.onload
+  // -------------------------------
+}; // end window.onload
