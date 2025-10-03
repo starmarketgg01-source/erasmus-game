@@ -272,7 +272,8 @@ window.onload = function () {
     const introBtn = document.getElementById("introStart");
     if (introBtn) {
       introBtn.onclick = () => {
-        document.getElementById("intro").style.display = "none";
+        const intro = document.getElementById("intro");
+        if (intro) intro.style.display = "none";
         try { document.getElementById("bgm")?.play(); } catch (_) {}
         showCityBanner("Avezzano");
       };
@@ -412,7 +413,7 @@ window.onload = function () {
   // -------------------------------
   // DEBUG: improved blocking detection
   // If a blocked direction has NO colliding tiles, we consider it a "false" block
-  // and we DON'T treat it as a real blocker (so the player can move through).
+  // and we "nudge" the player slightly so they can continue moving.
   // -------------------------------
   function debugCheckBlocking() {
     if (!player || !player.body) return;
@@ -458,10 +459,17 @@ window.onload = function () {
           console.log(`    → blocking on layer "${binfo.layerName}" tile index=${t.index} at (${t.x},${t.y})`, t.properties || {});
         }
       } else {
-        // no real blocking tiles found: consider this a false positive and allow movement
-        // we log lightly for debugging, but don't change player velocity here.
-        console.log(`(debug) faux blocage détecté ${c.dir} à (${Math.round(wx)}, ${Math.round(wy)}) — aucune tuile collidable trouvée.`);
-        // NOTE: we intentionally do not forcibly change player physics here; reduced hitbox & cleaned collision layers should prevent real issues.
+        // no real blocking tiles found -> this is probably a physics/floating point false positive
+        console.log(`(debug) faux blocage détecté ${c.dir} à (${Math.round(wx)}, ${Math.round(wy)}) — aucune tuile collidable trouvée. Autorisation de passage.`);
+        // Nudge player slightly to escape phantom block and clear the blocked flag so movement continues smoothly.
+        // Small nudge values; adjust if necessary.
+        const NUDGE = 2;
+        if (c.dir === "up") player.y -= NUDGE;
+        if (c.dir === "down") player.y += NUDGE;
+        if (c.dir === "left") player.x -= NUDGE;
+        if (c.dir === "right") player.x += NUDGE;
+        // Clear blocked flag for this direction
+        try { b.blocked[c.dir] = false; } catch(_) {}
       }
     }
   }
