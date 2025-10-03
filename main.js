@@ -1,10 +1,8 @@
 // ======================================================
-// main_godmode_complete.js
+// main_godmode_complete_fixed.js
 // Erasmus — main.js complet (God Mode + toggle D + POI + VILLE + minimap + mobile controls)
-// - Toggle God Mode with D (disable collisions globally + re-enable)
-// - Robust collision removal & restoration logic
-// - Debug utilities and safe fallbacks
-// - Drop-in replacement; compatible Phaser v3.55.x
+// Corrections : spawn avezzano prioritaire, God Mode robuste (mobile + desktop), réactivation collisions propre
+// Compatible Phaser v3.55.x
 // ======================================================
 
 window.onload = function () {
@@ -106,7 +104,6 @@ window.onload = function () {
       try {
         const layer = map.createLayer(name, tilesets, 0, 0);
         createdLayers[name] = layer;
-        // default tile layer depthing handled by tilemap; we may tweak some layers later.
       } catch (err) {
         console.warn("createLayer failed for", name, err);
       }
@@ -123,24 +120,34 @@ window.onload = function () {
     let spawnPoint = null;
     const poiLayer = map.getObjectLayer("POI");
     if (poiLayer && Array.isArray(poiLayer.objects)) {
+      // First pass: collect POIs and try to find spawn objects
       for (let obj of poiLayer.objects) {
         const name = (obj.name || "").toLowerCase();
         const type = (obj.type || "").toLowerCase();
-        if (name === "spawn_avezzano" || type === "spawn") {
-          if (!spawnPoint || name === "spawn_avezzano") spawnPoint = obj;
-        } else {
-          // parse properties
+        // collect POIs (we'll filter spawn after)
+        const isSpawnLike = name.includes("spawn") || type === "spawn";
+        if (!isSpawnLike) {
           const title = obj.properties?.find(p => p.name === "title")?.value || obj.name || "POI";
           const desc  = obj.properties?.find(p => p.name === "text")?.value  || "";
           const img   = obj.properties?.find(p => p.name === "media")?.value || null;
           poiData.push({ x: obj.x, y: obj.y, title, description: desc, image: img });
         }
+        // prefer explicit avezzano spawn (case-insensitive contains)
+        if ((obj.name || "").toLowerCase().includes("avezzano")) {
+          spawnPoint = obj;
+          break; // best possible -> stop
+        }
       }
-    }
 
-    // fallback: look for any object with spawn in name
-    if (!spawnPoint && poiLayer && Array.isArray(poiLayer.objects)) {
-      spawnPoint = poiLayer.objects.find(o => (o.name || "").toLowerCase().includes("spawn")) || null;
+      // If not found avezzano specifically, try to find any object typed/named spawn
+      if (!spawnPoint) {
+        // try exact-type spawn first
+        spawnPoint = poiLayer.objects.find(o => ((o.type || "").toLowerCase() === "spawn")) || null;
+      }
+      if (!spawnPoint) {
+        // try any name containing spawn
+        spawnPoint = poiLayer.objects.find(o => ((o.name || "").toLowerCase().includes("spawn"))) || null;
+      }
     }
 
     // final fallback: center of map
@@ -280,16 +287,15 @@ window.onload = function () {
 
     // handle D toggle (JustDown ensures single toggle per press)
     if (Phaser.Input.Keyboard.JustDown(toggleCollisionsKey)) {
-      // toggle flag
       godModeActive = !godModeActive;
       if (godModeActive) {
-        // enable god mode: disable all collisions
         disableCollisionsForGodMode(getScene());
         showTempDebugNotice("GOD MODE ON (D) — collisions désactivées");
+        console.log("GOD MODE ON");
       } else {
-        // restore collisions
         enableCollisionsFromGodMode(getScene());
         showTempDebugNotice("GOD MODE OFF (D) — collisions réactivées");
+        console.log("GOD MODE OFF");
       }
     }
 
@@ -310,7 +316,14 @@ window.onload = function () {
       if (mobileInput.down) vy += speed;
     }
 
-    player.setVelocity(vx, vy);
+    // If body exists, set velocity normally (we keep body enabled so movement works)
+    if (player && player.body) {
+      player.setVelocity(vx, vy);
+    } else {
+      // fallback: directly change x/y (shouldn't be needed normally)
+      player.x += (vx/60);
+      player.y += (vy/60);
+    }
 
     // animations
     if (vx < 0) playAnim("left", isRunning);
@@ -483,33 +496,54 @@ window.onload = function () {
     collisionsEnabled = false;
   }
 
+  // Try to remove any collider in the world that references the player (extra safety for invisible colliders)
+  function removeAnyPlayerWorldColliders(scene) {
+    try {
+      const worldColliders = scene.physics.world.colliders;
+      const list = worldColliders && (worldColliders.list || worldColliders._list) ? (worldColliders.list || worldColliders._list) : [];
+      for (let i = list.length - 1; i >= 0; i--) {
+        const c = list[i];
+        if (!c) continue;
+        // Many colliders store object1/object2 as the original objects (player or layer)
+        const objA = c.object1 || c.a || c.bodyA || c._objectA;
+        const objB = c.object2 || c.b || c.bodyB || c._objectB;
+        if (objA === player || objB === player || objA === player.body || objB === player.body) {
+          try { scene.physics.world.removeCollider(c); } catch(e) {}
+        }
+      }
+    } catch (err) {
+      // non-fatal
+      console.warn("removeAnyPlayerWorldColliders error", err);
+    }
+  }
+
   // Disable collisions in a robust way (for God Mode):
   // - remove layer colliders
-  // - set all tile collisions off for COLLISION_LAYERS
+  // - remove any world colliders referencing player
+  // - set tile collision flags OFF for collidable layers
   // - set player's checkCollision flags to false and disable collideWorldBounds
   function disableCollisionsForGodMode(scene) {
     // remove physics colliders
     removeLayerColliders(scene);
+    // extra: remove ANY collider referencing player (covers invisible leftovers)
+    removeAnyPlayerWorldColliders(scene);
 
     // clear collidable flags on tile layers (the visuals remain)
     for (const [name, layer] of Object.entries(createdLayers)) {
       if (!layer) continue;
-      if (COLLISION_LAYERS.includes(name)) {
-        try {
-          // set all tiles non-colliding:
-          // layer.setCollisionByExclusion([-1], false) is not always reliable on all versions, so iterate
-          layer.forEachTile(tile => {
-            if (tile) {
-              try { tile.setCollision(false, false, false, false); } catch(e){}
-            }
-          });
-        } catch (err) { /* ignore */ }
-      }
+      // we clear for all layers to be safe (some maps might have collision flag on unexpected layers)
+      try {
+        layer.forEachTile(tile => {
+          if (tile) {
+            try { tile.setCollision(false, false, false, false); } catch(e){}
+          }
+        });
+      } catch (err) { /* ignore */ }
     }
 
-    // disable player's world bounds collision and per-side collisions
+    // disable player's world bounds collision and per-side collisions (but keep body enabled so movement works)
     try {
-      if (player.body) {
+      if (player && player.body) {
         player.setCollideWorldBounds(false);
         if (player.body.checkCollision) {
           player.body.checkCollision.up = false;
@@ -517,21 +551,22 @@ window.onload = function () {
           player.body.checkCollision.left = false;
           player.body.checkCollision.right = false;
         } else {
-          // older/newer phaser differences: attempt to set properties defensively
           player.body.checkCollision = { up:false, down:false, left:false, right:false };
         }
+        // ensure body.enabled = true so setVelocity works
+        if (typeof player.body.enable !== "undefined") player.body.enable = true;
       }
     } catch (err) {
       console.warn("disableCollisionsForGodMode: player body adjust failed", err);
     }
 
-    // mark state
     collisionsEnabled = false;
+    console.log("disableCollisionsForGodMode: done");
   }
 
   // Re-enable collisions after God Mode:
-  // - restore tile collisions by setCollisionByExclusion, re-apply IGNORE indices
-  // - recreate colliders
+  // - restore tile collisions by setCollisionByExclusion on configured layers
+  // - recreate colliders (only for COLLISION_LAYERS)
   // - restore player body collision flags and world bounds
   function enableCollisionsFromGodMode(scene) {
     // First restore tile collision flags for configured layers
@@ -539,14 +574,11 @@ window.onload = function () {
       if (!layer) continue;
       if (COLLISION_LAYERS.includes(name)) {
         try {
-          // mark all non-empty tiles as colliding (this uses tile properties set in Tiled)
           layer.setCollisionByExclusion([-1]);
-          // ensure ignore indices are not collidable
           try { layer.setCollision(IGNORE_TILE_INDICES, false, true); } catch(e){}
-          // clear per-tile flags for ignored indices again
           layer.forEachTile(tile => {
             if (tile && IGNORE_TILE_INDICES.includes(tile.index)) {
-              try { tile.setCollision(false, false, false, false); } catch(e) {}
+              try { tile.setCollision(false, false, false, false); } catch(e){}
             }
           });
         } catch (err) {
@@ -560,7 +592,7 @@ window.onload = function () {
 
     // restore player body collision sides and world bounds
     try {
-      if (player.body) {
+      if (player && player.body) {
         if (player.body.checkCollision) {
           player.body.checkCollision.up = true;
           player.body.checkCollision.down = true;
@@ -576,6 +608,7 @@ window.onload = function () {
     }
 
     collisionsEnabled = true;
+    console.log("enableCollisionsFromGodMode: done");
   }
 
   // -------------------------------
@@ -645,6 +678,7 @@ window.onload = function () {
       el.addEventListener("mouseleave", end);
     };
 
+    // always bind if buttons exist (works on PC too)
     bindButton("btn-up",    () => mobileInput.up = true,    () => mobileInput.up = false);
     bindButton("btn-down",  () => mobileInput.down = true,  () => mobileInput.down = false);
     bindButton("btn-left",  () => mobileInput.left = true,  () => mobileInput.left = false);
@@ -657,6 +691,37 @@ window.onload = function () {
       eBtn.addEventListener("touchstart", tap, { passive:false });
       eBtn.addEventListener("mousedown", tap);
     }
+
+    // mobile God button (visible on all devices but fine on desktop too)
+    let btnGod = document.getElementById("btn-god");
+    if (!btnGod) {
+      btnGod = document.createElement("button");
+      btnGod.id = "btn-god";
+      btnGod.innerText = "GOD";
+      Object.assign(btnGod.style, {
+        position:"fixed", bottom:"92px", right:"18px",
+        background:"#cc0000", color:"#fff", padding:"10px 14px",
+        borderRadius:"999px", border:"none", fontWeight:"700",
+        fontSize:"14px", zIndex:"20000", boxShadow:"0 6px rgba(0,0,0,0.3)"
+      });
+      document.body.appendChild(btnGod);
+    }
+    // tap & click work
+    const toggleGodMobile = (ev) => {
+      ev && ev.preventDefault && ev.preventDefault();
+      godModeActive = !godModeActive;
+      if (godModeActive) {
+        disableCollisionsForGodMode(getScene());
+        showTempDebugNotice("GOD MODE ON (mobile)");
+        console.log("GOD MODE ON (mobile)");
+      } else {
+        enableCollisionsFromGodMode(getScene());
+        showTempDebugNotice("GOD MODE OFF (mobile)");
+        console.log("GOD MODE OFF (mobile)");
+      }
+    };
+    btnGod.addEventListener("touchstart", toggleGodMobile, { passive:false });
+    btnGod.addEventListener("mousedown", toggleGodMobile);
   }
 
   // -------------------------------
@@ -725,5 +790,5 @@ window.onload = function () {
 }; // window.onload end
 
 // ======================================================
-// EOF - main_godmode_complete.js
+// EOF - main_godmode_complete_fixed.js
 // ======================================================
