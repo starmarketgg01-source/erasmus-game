@@ -1,218 +1,235 @@
-// ======================================================
-// main_fixed_erasmus_full.js
-// Erasmus — corrected full main.js
-// - Ensures spawn_avezzano is always preferred (mobile + desktop)
-// - Robust God Mode toggle (key D + mobile button) that truly disables collisions
-// - Re-creates collisions correctly when toggling back on
-// - Reduced hitbox on mobile to avoid invisible blocking
-// - Debug utilities to show colliding tiles around player (toggle L)
-// - Mobile-friendly: creates god button automatically if absent
-// - Keep as a drop-in replacement for your previous main.js
-// ======================================================
+// =========================================================
+// main_full_erasmus_all_in_one.js
+// Erasmus — main script (complete)
+// Features:
+//  - Loads erasmus.tmj + tilesets (tileset_part1/2/3.png.png)
+//  - Spawn at spawn_avezzano (explicit) with fallback
+//  - POI interactions (E / mobile btn)
+//  - VILLE zones -> city banners
+//  - Collisions on specified layers, ignoring given tile indices
+//  - God Mode: toggle with "D" (keyboard) and mobile button (#btn-godmode)
+//      -> reliably disables ALL collisions (removes colliders + disables player checkCollision)
+//      -> re-enables collisions (restores tile collisions + re-add colliders + restores checkCollision)
+//  - Camera strictly centered on player (no lerp)
+//  - Minimap with player arrow
+//  - Dust particles when running
+//  - Mobile controls (D-pad buttons expected in DOM)
+//  - Debug utilities & light logging
+// =========================================================
 
 window.onload = function () {
-  // -------------------------------
+  // ---------------------------
   // CONFIG
-  // -------------------------------
-  const CONFIG = {
-    CAMERA_ZOOM: 2.5,
-    MINIMAP_W: 220,
-    MINIMAP_H: 160,
-    MINIMAP_Z: 0.22,
-    PLAYER_SCALE: 0.20,
-    IGNORE_TILE_INDICES: [809, 1341, 2268, 2269], // add more if you find them
-    COLLISION_LAYERS: ["water","rails","bord de map","vegetation 1","vegetation 2","batiments 1","batiments 2"],
-    POI_RADIUS: 40,
-    DEFAULT_VILLE_RADIUS: 150,
-    MOBILE_HITBOX_SCALE: 0.30, // smaller on mobile to reduce ghost collisions
-    DESKTOP_HITBOX_SCALE: 0.45,
-    VERBOSE: false // set to true to get extensive console logs
+  // ---------------------------
+  const config = {
+    type: Phaser.AUTO,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    parent: "game",
+    physics: {
+      default: "arcade",
+      arcade: {
+        debug: false,
+        gravity: { y: 0 }
+      }
+    },
+    scene: { preload, create, update }
   };
 
-  // -------------------------------
+  const game = new Phaser.Game(config);
+
+  // ---------------------------
   // GLOBALS
-  // -------------------------------
+  // ---------------------------
   let map = null;
   let player = null;
-  let createdLayers = {};
-  let layerColliders = []; // colliders created between player and tile layers
-  let objectLayerColliders = []; // colliders created from object layers (if any)
-  let poiData = [];
-  let villes = [];
-  let currentPOI = null;
-  let currentVille = null;
-  let interactionBox = null;
+  let cursors = null;
+  let shiftKey = null;
+  let interactionKey = null;
+  let toggleCollisionsKey = null; // D key
   let minimapCam = null;
   let playerMiniArrow = null;
   let dustEmitter = null;
-  let collisionsEnabled = true;
-  let debugDrawTiles = false;
+  let poiData = [];
+  let currentPOI = null;
+  let villes = [];
+  let currentVille = null;
+  let interactionBox = null;
+  let createdLayers = {}; // name -> TilemapLayer
+  let layerColliders = []; // store colliders to remove/recreate
+  let collisionsEnabled = true; // tracks whether collisions active
+  let godModeNoticeTimeout = null;
+
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   const mobileInput = { up:false, down:false, left:false, right:false, run:false };
 
-  // input keys (will be set in create)
-  let cursors, shiftKey, interactionKey, toggleCollisionsKey, debugTilesKey;
+  // Which layers in Tiled are considered collidable (strings must match exactly)
+  const COLLISION_LAYERS = [
+    "water", "rails", "bord de map", "vegetation 1", "vegetation 2", "batiments 1", "batiments 2"
+  ];
 
-  // -------------------------------
+  // Tile indices to ignore as collidable (bridge/road artifacts you reported).
+  // Add more indices here if you find others in logs.
+  const IGNORE_TILE_INDICES = [809, 1341, 2268, 2269];
+
+  // Gameplay constants
+  const POI_RADIUS = 40;
+  const DEFAULT_VILLE_RADIUS = 150;
+
+  // ---------------------------
   // PRELOAD
-  // -------------------------------
+  // ---------------------------
   function preload() {
+    // tilemap and tilesets
     this.load.tilemapTiledJSON("map", "images/maps/erasmus.tmj");
     this.load.image("tileset_part1", "images/maps/tileset_part1.png.png");
     this.load.image("tileset_part2", "images/maps/tileset_part2.png.png");
     this.load.image("tileset_part3", "images/maps/tileset_part3.png.png");
 
+    // player sprite sheet (144x144 as you had)
     this.load.spritesheet("player", "images/characters/player.png", { frameWidth: 144, frameHeight: 144 });
 
-    // optional audio
+    // optional audio (safe to be missing)
     this.load.audio("bgm", "audio/bgm.mp3");
     this.load.audio("sfx-open", "audio/open.mp3");
     this.load.audio("sfx-close", "audio/close.mp3");
   }
 
-  // -------------------------------
+  // ---------------------------
   // CREATE
-  // -------------------------------
+  // ---------------------------
   function create() {
-    // Map & tilesets
+    // create tilemap
     map = this.make.tilemap({ key: "map" });
+
+    // add tilesets (names must match those used in Tiled)
     const ts1 = map.addTilesetImage("tileset_part1.png", "tileset_part1");
     const ts2 = map.addTilesetImage("tileset_part2.png", "tileset_part2");
     const ts3 = map.addTilesetImage("tileset_part3.png", "tileset_part3");
     const tilesets = [ts1, ts2, ts3].filter(Boolean);
 
-    // create layers
+    // create all layers and store them
     createdLayers = {};
     for (const ld of map.layers) {
       const name = ld.name;
       try {
         const layer = map.createLayer(name, tilesets, 0, 0);
-        if (layer) {
-          createdLayers[name] = layer;
-          if (CONFIG.VERBOSE) console.log("Created layer:", name);
-        }
+        createdLayers[name] = layer;
       } catch (err) {
         console.warn("Layer create failed:", name, err);
       }
     }
 
-    // adjust decorative depths if present
+    // adjust depth if you have those lamp layers
     if (createdLayers["lampadaire + bancs + panneaux"]) createdLayers["lampadaire + bancs + panneaux"].setDepth(2000);
     if (createdLayers["lampadaire_base"]) createdLayers["lampadaire_base"].setDepth(3000);
     if (createdLayers["lampadaire_haut"]) createdLayers["lampadaire_haut"].setDepth(9999);
 
-    // OBJECT LAYERS: POI + spawn detection
-    const poiLayer = map.getObjectLayer("POI");
+    // ---------------------------
+    // OBJECTS: spawn & POI
+    // ---------------------------
     let spawnPoint = null;
+    const poiLayer = map.getObjectLayer("POI");
     if (poiLayer && Array.isArray(poiLayer.objects)) {
-      // prefer spawn_avezzano explicitly (case-insensitive)
       for (const obj of poiLayer.objects) {
-        if ((obj.name || "").toLowerCase() === "spawn_avezzano") {
-          spawnPoint = obj;
-          break;
-        }
-      }
-      // if not found exactly spawn_avezzano, look for any object of type 'spawn' or name containing 'spawn'
-      if (!spawnPoint) {
-        for (const obj of poiLayer.objects) {
-          if ((obj.type || "").toLowerCase() === "spawn" || (obj.name || "").toLowerCase().includes("spawn")) {
-            spawnPoint = obj;
-            break;
-          }
-        }
-      }
-      // collect POIs
-      for (const obj of poiLayer.objects) {
-        const name = obj.name || "";
+        const name = (obj.name || "").toLowerCase();
         const type = (obj.type || "").toLowerCase();
-        if ((name || "").toLowerCase() === "spawn_avezzano") continue; // skip spawn
-        if (type === "spawn") continue; // skip generic spawn
-        poiData.push({
-          x: obj.x,
-          y: obj.y,
-          title: obj.properties?.find(p=>p.name==='title')?.value || obj.name || "POI",
-          description: obj.properties?.find(p=>p.name==='text')?.value || "",
-          image: obj.properties?.find(p=>p.name==='media')?.value || null
-        });
+
+        if (name === "spawn_avezzano" || type === "spawn") {
+          // prefer explicit spawn_avezzano if present
+          if (!spawnPoint || name === "spawn_avezzano") spawnPoint = obj;
+          continue;
+        }
+
+        // collect POI data
+        const title = obj.properties?.find(p => p.name === "title")?.value || obj.name || "POI";
+        const description = obj.properties?.find(p => p.name === "text")?.value || "";
+        const image = obj.properties?.find(p => p.name === "media")?.value || null;
+        poiData.push({ x: obj.x, y: obj.y, title, description, image });
       }
     }
 
-    // final fallback if no spawn found
-    if (!spawnPoint) {
-      console.warn("spawn_avezzano not found — falling back to map center");
-      spawnPoint = { x: map.widthInPixels / 2, y: map.heightInPixels / 2 };
+    // fallback: find any object with 'spawn' in name
+    if (!spawnPoint && poiLayer && Array.isArray(poiLayer.objects)) {
+      spawnPoint = poiLayer.objects.find(o => (o.name || "").toLowerCase().includes("spawn")) || null;
     }
 
-    // Create player at spawn_avezzano (ensures mobile uses same)
+    // final fallback: center of map
+    if (!spawnPoint) spawnPoint = { x: map.widthInPixels / 2, y: map.heightInPixels / 2 };
+
+    // ---------------------------
+    // PLAYER
+    // ---------------------------
     player = this.physics.add.sprite(spawnPoint.x, spawnPoint.y, "player", 0);
     player.setOrigin(0.5, 1);
-    player.setScale(CONFIG.PLAYER_SCALE);
+    player.setScale(0.20);
     player.setCollideWorldBounds(true);
 
-    // Hitbox reduction: smaller on mobile to avoid invisible-blocks
+    // reduce hitbox to avoid ghost collisions on thin bridges
     if (player.body) {
-      const scale = isMobile ? CONFIG.MOBILE_HITBOX_SCALE : CONFIG.DESKTOP_HITBOX_SCALE;
-      const w = player.width * scale;
-      const h = player.height * (isMobile ? 0.28 : 0.32);
-      const ox = Math.round((player.width - w) / 2);
-      const oy = Math.round(player.height - h);
-      player.body.setSize(w, h);
-      player.body.setOffset(ox, oy);
-      if (CONFIG.VERBOSE) console.log("Player hitbox set:", w, h, ox, oy);
+      player.body.setSize(player.width * 0.45, player.height * 0.32);
+      player.body.setOffset(player.width * 0.28, player.height * 0.68);
     }
 
-    // VILLE zones
+    // ---------------------------
+    // VILLE object layer
+    // ---------------------------
     const villeLayer = map.getObjectLayer("VILLE");
     villes = [];
     if (villeLayer && Array.isArray(villeLayer.objects)) {
       for (const obj of villeLayer.objects) {
         const cx = obj.x + (obj.width || 0) / 2;
         const cy = obj.y + (obj.height || 0) / 2;
-        const r = Math.max(obj.width || 0, obj.height || 0) / 2 || CONFIG.DEFAULT_VILLE_RADIUS;
+        const r = Math.max(obj.width || 0, obj.height || 0) / 2 || DEFAULT_VILLE_RADIUS;
         villes.push({ name: obj.name || "Ville", x: cx, y: cy, radius: r });
       }
     }
 
-    // COLLISIONS: mark collidable layers and remove IGNORE indices
+    // ---------------------------
+    // COLLISIONS - initial setup
+    // - setCollisionByExclusion for layers in COLLISION_LAYERS
+    // - clear tile collision flags for indices in IGNORE_TILE_INDICES
+    // ---------------------------
     setupCollisions(this);
 
-    // Add colliders between player and collidable layers
+    // add colliders between player and tile layers
     addLayerColliders(this);
 
-    // If there are object-based collision shapes (some authors use this), try binding them too
-    // We'll search object layers named 'COLLISION' or 'collision' and create static bodies for them (best-effort)
-    tryAttachObjectColliders(this);
+    // collider with decorative layers (if any)
+    if (createdLayers["lampadaire + bancs + panneaux"]) {
+      try { this.physics.add.collider(player, createdLayers["lampadaire + bancs + panneaux"]); } catch(e) {}
+    }
 
-    // Camera (strict center as requested)
+    // ---------------------------
+    // CAMERA - strictly centered (no lerp)
+    // ---------------------------
     this.cameras.main.startFollow(player, false, 1, 1);
-    this.cameras.main.setZoom(CONFIG.CAMERA_ZOOM);
+    this.cameras.main.setZoom(2.5);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
 
-    // Minimap
-    minimapCam = this.cameras.add(window.innerWidth - CONFIG.MINIMAP_W - 12, 12, CONFIG.MINIMAP_W, CONFIG.MINIMAP_H);
-    minimapCam.setZoom(CONFIG.MINIMAP_Z).startFollow(player);
-    playerMiniArrow = this.add.triangle(minimapCam.x + CONFIG.MINIMAP_W/2, minimapCam.y + CONFIG.MINIMAP_H/2, 0,12,12,12,6,0, 0xff0000)
+    // ---------------------------
+    // MINIMAP
+    // ---------------------------
+    const miniW = 220, miniH = 160, miniZoom = 0.22;
+    minimapCam = this.cameras.add(window.innerWidth - miniW - 12, 12, miniW, miniH);
+    minimapCam.setZoom(miniZoom).startFollow(player);
+
+    playerMiniArrow = this.add.triangle(minimapCam.x + miniW/2, minimapCam.y + miniH/2, 0,12, 12,12, 6,0, 0xff0000)
       .setScrollFactor(0).setDepth(11001);
 
-    // Particles (dust)
-    const g = this.make.graphics({ x:0,y:0,add:false });
-    g.fillStyle(0xffffff,1).fillCircle(4,4,4);
-    g.generateTexture("dust", 8, 8);
-    const particles = this.add.particles("dust");
-    dustEmitter = particles.createEmitter({
-      x:0,y:0, speed:{min:-40,max:40}, angle:{min:200,max:340},
-      scale:{start:0.27,end:0}, alpha:{start:0.8,end:0}, lifespan:400, on:false
-    });
-    dustEmitter.startFollow(player, 0, -6);
-
-    // Inputs & keys
+    // ---------------------------
+    // INPUTS & DOM
+    // ---------------------------
     cursors = this.input.keyboard.createCursorKeys();
     shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     interactionKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     toggleCollisionsKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
-    debugTilesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.L); // press L to draw debug colliding tiles
 
-    // Interaction box DOM
+    // ensure mobile spawn uses spawn_avezzano too - user reported mobile spawn at L'aquila
+    // To force spawn_avezzano across devices we already prioritized spawn_avezzano above.
+    // If you STILL spawn at another point, check the TMJ objects naming.
+
+    // interaction box DOM
     interactionBox = document.getElementById("interaction-box");
     if (!interactionBox) {
       interactionBox = document.createElement("div");
@@ -223,23 +240,46 @@ window.onload = function () {
       interactionBox.style.display = "none";
     }
 
-    // Animations
-    this.anims.create({ key:"down", frames:this.anims.generateFrameNumbers("player",{start:0,end:2}), frameRate:6, repeat:-1 });
-    this.anims.create({ key:"left", frames:this.anims.generateFrameNumbers("player",{start:3,end:5}), frameRate:6, repeat:-1 });
-    this.anims.create({ key:"right", frames:this.anims.generateFrameNumbers("player",{start:6,end:8}), frameRate:6, repeat:-1 });
-    this.anims.create({ key:"up", frames:this.anims.generateFrameNumbers("player",{start:9,end:11}), frameRate:6, repeat:-1 });
-    this.anims.create({ key:"idle-down", frames:[{key:"player",frame:1}] });
-    this.anims.create({ key:"idle-left", frames:[{key:"player",frame:4}] });
-    this.anims.create({ key:"idle-right", frames:[{key:"player",frame:7}] });
-    this.anims.create({ key:"idle-up", frames:[{key:"player",frame:10}] });
+    // ---------------------------
+    // ANIMATIONS
+    // ---------------------------
+    this.anims.create({ key: "down", frames: this.anims.generateFrameNumbers("player", { start:0, end:2 }), frameRate:6, repeat:-1 });
+    this.anims.create({ key: "left", frames: this.anims.generateFrameNumbers("player", { start:3, end:5 }), frameRate:6, repeat:-1 });
+    this.anims.create({ key: "right", frames: this.anims.generateFrameNumbers("player", { start:6, end:8 }), frameRate:6, repeat:-1 });
+    this.anims.create({ key: "up", frames: this.anims.generateFrameNumbers("player", { start:9, end:11 }), frameRate:6, repeat:-1 });
+    this.anims.create({ key: "idle-down", frames: [{ key:"player", frame:1 }] });
+    this.anims.create({ key: "idle-left", frames: [{ key:"player", frame:4 }] });
+    this.anims.create({ key: "idle-right", frames: [{ key:"player", frame:7 }] });
+    this.anims.create({ key: "idle-up", frames: [{ key:"player", frame:10 }] });
 
-    // Mobile controls binding + spawn forced to avezzano already
+    // ---------------------------
+    // PARTICLES - dust when running
+    // ---------------------------
+    const g = this.make.graphics({ x:0, y:0, add:false });
+    g.fillStyle(0xffffff, 1).fillCircle(4,4,4);
+    g.generateTexture("dust", 8, 8);
+    const particles = this.add.particles("dust");
+    dustEmitter = particles.createEmitter({
+      x:0, y:0, speed: { min:-40, max:40 }, angle:{ min:200, max:340 },
+      scale: { start: 0.27, end: 0 }, alpha: { start: 0.8, end: 0 }, lifespan: 400, on: false
+    });
+    dustEmitter.startFollow(player, 0, -6);
+
+    // ---------------------------
+    // MOBILE CONTROL BINDINGS
+    // Expecting D-pad and mobile buttons in DOM:
+    //  #btn-up, #btn-down, #btn-left, #btn-right, #btn-run, #btn-interact, #btn-godmode
+    // ---------------------------
     bindMobileControls();
 
-    // Ensure mobile has a god-mode button
-    createMobileGodButton();
+    // Hook mobile god-mode button
+    const btnGod = document.getElementById("btn-godmode");
+    if (btnGod) {
+      btnGod.addEventListener("touchstart", (e)=>{ e.preventDefault(); toggleGodModeMobile(); }, { passive:false });
+      btnGod.addEventListener("mousedown", (e)=>{ e.preventDefault(); toggleGodModeMobile(); });
+    }
 
-    // Intro button usage (optional)
+    // Intro button if present
     const introBtn = document.getElementById("introStart");
     if (introBtn) {
       introBtn.onclick = () => {
@@ -249,34 +289,32 @@ window.onload = function () {
         showCityBanner("Avezzano");
       };
     }
-
-    // Optional: draw a debug rectangle representing player's body for mobile debugging
-    if (CONFIG.VERBOSE) createPlayerDebugBox(this);
   } // end create()
 
-  // -------------------------------
+  // ---------------------------
   // UPDATE
-  // -------------------------------
+  // ---------------------------
   function update() {
     if (!player) return;
 
-    // Toggle collisions/god-mode by D key
+    // Toggle God Mode / collisions with D key
     if (Phaser.Input.Keyboard.JustDown(toggleCollisionsKey)) {
-      toggleGodMode(this);
+      collisionsEnabled = !collisionsEnabled;
+      if (!collisionsEnabled) {
+        // disable collisions: remove colliders + player checks
+        disableCollisions(getScene());
+        showTempDebugNotice("God Mode ON — collisions désactivées");
+      } else {
+        // enable: restore tile collisions + recreate colliders
+        enableCollisions(getScene());
+        showTempDebugNotice("God Mode OFF — collisions réactivées");
+      }
     }
 
-    // Toggle debug tile drawing
-    if (Phaser.Input.Keyboard.JustDown(debugTilesKey)) {
-      debugDrawTiles = !debugDrawTiles;
-      if (!debugDrawTiles) clearDebugTileGraphics(this);
-      else drawDebugTileGraphics(this);
-      showTempNotice("Debug tiles " + (debugDrawTiles ? "ON" : "OFF"));
-    }
-
-    // movement input
     const isRunning = (shiftKey && shiftKey.isDown) || mobileInput.run;
     const speed = isRunning ? 150 : 70;
     let vx = 0, vy = 0;
+
     if (!isMobile) {
       if (cursors.left.isDown) vx -= speed;
       if (cursors.right.isDown) vx += speed;
@@ -291,22 +329,22 @@ window.onload = function () {
 
     player.setVelocity(vx, vy);
 
-    // animations
+    // animation switching
     if (vx < 0) playAnim("left", isRunning);
     else if (vx > 0) playAnim("right", isRunning);
     else if (vy < 0) playAnim("up", isRunning);
     else if (vy > 0) playAnim("down", isRunning);
     else {
       if (player.anims.currentAnim) {
-        const key = player.anims.currentAnim.key;
-        if (["up","down","left","right"].includes(key)) player.anims.play("idle-" + key, true);
+        const dir = player.anims.currentAnim.key;
+        if (["up","down","left","right"].includes(dir)) player.anims.play("idle-" + dir, true);
       }
     }
 
     player.setDepth(player.y);
     dustEmitter.on = isRunning && (Math.abs(vx) > 1 || Math.abs(vy) > 1);
 
-    // update minimap arrow rotation + position
+    // minimap arrow rotation + position
     if (player.anims.currentAnim) {
       const dir = player.anims.currentAnim.key;
       if (dir.includes("up")) playerMiniArrow.rotation = 0;
@@ -323,16 +361,12 @@ window.onload = function () {
     currentPOI = null;
     for (const poi of poiData) {
       const d = Phaser.Math.Distance.Between(player.x, player.y, poi.x, poi.y);
-      if (d < CONFIG.POI_RADIUS) {
-        currentPOI = poi;
-        if (!isMobile) showPressE();
-        break;
-      }
+      if (d < POI_RADIUS) { currentPOI = poi; if (!isMobile) showPressE(); break; }
     }
     if (!currentPOI && !isMobile) hidePressE();
     if (!isMobile && currentPOI && Phaser.Input.Keyboard.JustDown(interactionKey)) showInteraction(currentPOI);
 
-    // Villes detection (show banner)
+    // VILLE detection -> show banner
     let inVille = null;
     for (const v of villes) {
       const d = Phaser.Math.Distance.Between(player.x, player.y, v.x, v.y);
@@ -343,24 +377,29 @@ window.onload = function () {
       showCityBanner(inVille);
     }
 
-    // draw debug tile overlay near player if enabled
-    if (debugDrawTiles) drawDebugTileGraphics(this);
+    // minimal blocking debug (only logs real collidable tiles)
+    debugCheckBlocking();
   }
 
-  // -------------------------------
+  // ---------------------------
   // HELPERS
-  // -------------------------------
+  // ---------------------------
   function playAnim(key, isRunning) {
     if (!player.anims.isPlaying || player.anims.currentAnim?.key !== key) player.anims.play(key, true);
     player.anims.timeScale = isRunning ? 2 : 1;
   }
 
   function showPressE() {
-    if (document.getElementById("pressE")) return;
-    const e = document.createElement("div");
-    e.id = "pressE"; e.innerText = "Appuie sur E";
-    Object.assign(e.style, { position:"absolute", top:"20px", left:"50%", transform:"translateX(-50%)", background:"rgba(0,0,0,0.7)", color:"#fff", padding:"6px 12px", borderRadius:"6px", zIndex:99999 });
-    document.body.appendChild(e);
+    if (!document.getElementById("pressE")) {
+      const e = document.createElement("div");
+      e.id = "pressE";
+      e.innerText = "Appuie sur E";
+      Object.assign(e.style, {
+        position: "absolute", top: "20px", left: "50%", transform: "translateX(-50%)",
+        background: "rgba(0,0,0,0.7)", color: "#fff", padding: "6px 12px", borderRadius: "6px", zIndex: "99999"
+      });
+      document.body.appendChild(e);
+    }
   }
   function hidePressE() { const e = document.getElementById("pressE"); if (e) e.remove(); }
 
@@ -378,7 +417,10 @@ window.onload = function () {
     `;
     interactionBox.style.display = "flex";
     const closeBtn = document.getElementById("closeBox");
-    if (closeBtn) closeBtn.onclick = () => { interactionBox.style.display = "none"; try { document.getElementById("sfx-close")?.play(); } catch(_) {} };
+    if (closeBtn) closeBtn.onclick = () => {
+      interactionBox.style.display = "none";
+      try { document.getElementById("sfx-close")?.play(); } catch(_) {}
+    };
   }
 
   function showCityBanner(name) {
@@ -387,348 +429,240 @@ window.onload = function () {
     let overlay = document.getElementById("fade-overlay");
     if (!overlay) { overlay = document.createElement("div"); overlay.id = "fade-overlay"; document.body.appendChild(overlay); }
     overlay.classList.add("active");
-    setTimeout(()=>{
+    setTimeout(() => {
       banner.innerText = name;
       banner.classList.add("show");
       overlay.classList.remove("active");
-      setTimeout(()=>banner.classList.remove("show"), 4000);
+      setTimeout(() => banner.classList.remove("show"), 4000);
     }, 420);
   }
 
-  // -------------------------------
+  // ---------------------------
   // COLLISIONS MANAGEMENT
-  // -------------------------------
+  // ---------------------------
   function setupCollisions(scene) {
-    // Mark collision tiles for configured layers, but remove problematic indices
+    // Mark collidable tiles for layers in COLLISION_LAYERS while clearing IGNORE indices
     for (const [name, layer] of Object.entries(createdLayers)) {
       if (!layer) continue;
-      if (!CONFIG.COLLISION_LAYERS.includes(name)) continue;
-      try {
-        layer.setCollisionByExclusion([-1]);
-        // disable specific indices on this layer
-        try { layer.setCollision(CONFIG.IGNORE_TILE_INDICES, false, true); } catch(e) { /* ignore */ }
-        layer.forEachTile(tile => {
-          if (tile && CONFIG.IGNORE_TILE_INDICES.includes(tile.index)) {
-            try { tile.setCollision(false, false, false, false); } catch(e) {}
-          }
-        });
-        if (CONFIG.VERBOSE) console.log("Collision setup on layer:", name);
-      } catch (err) {
-        console.warn("Error setting collisions on", name, err);
+      if (COLLISION_LAYERS.includes(name)) {
+        try {
+          // Set all non-empty tiles colliding
+          layer.setCollisionByExclusion([-1]);
+          // Try to clear specific problematic indices
+          try { layer.setCollision(IGNORE_TILE_INDICES, false, true); } catch(e) {}
+          // Also ensure individual tile flags cleared for those indices
+          layer.forEachTile(tile => {
+            if (tile && IGNORE_TILE_INDICES.includes(tile.index)) {
+              try { tile.setCollision(false, false, false, false); } catch(e) {}
+            }
+          });
+        } catch (err) {
+          console.warn("setupCollisions: error on layer", name, err);
+        }
       }
     }
   }
 
   function addLayerColliders(scene) {
-    // remove old colliders first
-    removeLayerColliders(scene);
+    // Remove any stored colliders first
+    for (const col of layerColliders) {
+      try { scene.physics.world.removeCollider(col); } catch(e) {}
+    }
     layerColliders = [];
+    // Add new colliders and save them
     for (const [name, layer] of Object.entries(createdLayers)) {
       if (!layer) continue;
-      if (!CONFIG.COLLISION_LAYERS.includes(name)) continue;
-      try {
-        const c = scene.physics.add.collider(player, layer);
-        if (c) layerColliders.push(c);
-      } catch (err) {
-        if (CONFIG.VERBOSE) console.warn("Failed to add collider for layer", name, err);
+      if (COLLISION_LAYERS.includes(name)) {
+        try {
+          const c = scene.physics.add.collider(player, layer);
+          if (c) layerColliders.push(c);
+        } catch (err) {
+          // ignore errors
+        }
       }
     }
+    // Also ensure player's body collision checks are enabled (if enabling)
+    if (player && player.body) player.body.checkCollision.none = false;
   }
 
   function removeLayerColliders(scene) {
-    for (const c of layerColliders) {
-      try { scene.physics.world.removeCollider(c); } catch(_) {}
+    for (const col of layerColliders) {
+      try { scene.physics.world.removeCollider(col); } catch(e) {}
     }
     layerColliders = [];
   }
 
   function disableCollisions(scene) {
-    // remove colliders and set tiles to non-colliding
-    for (const [name, layer] of Object.entries(createdLayers)) {
-      if (!layer) continue;
-      if (!CONFIG.COLLISION_LAYERS.includes(name)) continue;
-      try {
-        // mark layer tiles non-colliding
-        try { layer.setCollisionByExclusion([-1], false); } catch(e) {} // may not be supported in some versions
-        layer.forEachTile(tile => { try { if (tile) tile.setCollision(false, false, false, false); } catch(e){} });
-      } catch (err) {
-        if (CONFIG.VERBOSE) console.warn("disableCollisions error on layer", name, err);
-      }
-    }
+    // Remove colliders between player and layers
     removeLayerColliders(scene);
 
-    // Also set player's checkCollision to none so it truly ignores remaining colliders
-    if (player && player.body) {
-      if (player.body.checkCollision) {
-        player.body.checkCollision.none = true;
-      } else {
-        // older versions: set all sides false
-        try { player.body.checkCollision = { up:false, down:false, left:false, right:false }; } catch(e) {}
+    // Clear tile collision flags for the collision layers so tile collisions don't run
+    for (const [name, layer] of Object.entries(createdLayers)) {
+      if (!layer) continue;
+      if (COLLISION_LAYERS.includes(name)) {
+        try {
+          // In some Phaser versions setCollisionByExclusion accepts a second arg 'collides' - here we use per-tile clearing
+          layer.forEachTile(tile => {
+            if (tile) {
+              try { tile.setCollision(false, false, false, false); } catch(e) {}
+            }
+          });
+        } catch (err) { /* ignore */ }
       }
     }
 
-    // Also remove object layer colliders if any
-    for (const c of objectLayerColliders) {
-      try { scene.physics.world.removeCollider(c); } catch(_) {}
+    // Additionally, disable player's body collision checks to pass through bodies
+    if (player && player.body) {
+      player.body.checkCollision.none = true;
     }
-    objectLayerColliders = [];
   }
 
   function enableCollisions(scene) {
-    // restore tile flags and recreate colliders
+    // re-establish tile collision flags
     setupCollisions(scene);
+    // re-add colliders between player and layers
     addLayerColliders(scene);
-
-    // re-enable player's checkCollision
-    if (player && player.body) {
-      if (player.body.checkCollision) player.body.checkCollision.none = false;
-      else try { player.body.checkCollision = { up:true, down:true, left:true, right:true }; } catch(e) {}
-    }
-
-    // reattach object colliders if needed
-    tryAttachObjectColliders(scene);
+    // re-enable player's body collision checks
+    if (player && player.body) player.body.checkCollision.none = false;
   }
 
-  // Toggle god mode helper
-  function toggleGodMode(scene) {
+  // Toggle function used by mobile button
+  function toggleGodModeMobile() {
     collisionsEnabled = !collisionsEnabled;
     if (!collisionsEnabled) {
-      disableCollisions(scene);
-      setMobileGodButtonState(true);
-      showTempNotice("God Mode ON (collisions disabled)");
-      if (CONFIG.VERBOSE) console.log("God Mode ON: collisions disabled");
+      disableCollisions(getScene());
+      showTempDebugNotice("God Mode ON (mobile)");
     } else {
-      enableCollisions(scene);
-      setMobileGodButtonState(false);
-      showTempNotice("God Mode OFF (collisions enabled)");
-      if (CONFIG.VERBOSE) console.log("God Mode OFF: collisions enabled");
+      enableCollisions(getScene());
+      showTempDebugNotice("God Mode OFF (mobile)");
     }
   }
 
-  // -------------------------------
-  // Try to attach object layer rectangles (if author used objects for collisions)
-  // -------------------------------
-  function tryAttachObjectColliders(scene) {
-    // find candidate object layers
-    for (const olName of Object.keys(map.objects || {})) {
-      const ol = map.objects[olName];
-      // 'map.objects' structure can vary - use getObjectLayer instead
-    }
-    // use getObjectLayer API safely
-    for (const mlName of map.objects ? Object.keys(map.objects) : []) {
-      // skip - deprecated path
-    }
-    // Preferred: check known object layer names
-    const candidateNames = ["collision", "COLLISION", "Collisions", "collisions"];
-    for (const cn of candidateNames) {
-      const objLayer = map.getObjectLayer(cn);
-      if (!objLayer || !Array.isArray(objLayer.objects)) continue;
-      // create static group shapes from rectangles
-      const bodies = thisAddStaticObjectsFromLayer(scene, objLayer);
-      for (const b of bodies) {
+  // ---------------------------
+  // DEBUG - check blocking tiles and log only real colliders
+  // ---------------------------
+  function debugCheckBlocking() {
+    if (!player || !player.body) return;
+    const b = player.body;
+    if (!(b.blocked.left || b.blocked.right || b.blocked.up || b.blocked.down)) return;
+
+    const checks = [
+      { dir:"left", dx:-16, dy:0 },
+      { dir:"right", dx:16, dy:0 },
+      { dir:"up", dx:0, dy:-16 },
+      { dir:"down", dx:0, dy:16 }
+    ];
+
+    for (const c of checks) {
+      if (!b.blocked[c.dir]) continue;
+      const wx = Math.round(player.x + c.dx);
+      const wy = Math.round(player.y + c.dy);
+      let realBlocking = [];
+      for (const [layerName, tLayer] of Object.entries(createdLayers)) {
+        if (!tLayer) continue;
         try {
-          const c = scene.physics.add.collider(player, b);
-          if (c) objectLayerColliders.push(c);
-        } catch(e) {}
-      }
-    }
-
-    // Also check any object layer with rectangle objects and not named COLLISION
-    for (const ol of map.objects || []) {
-      // "map.objects" sometimes not an object by name; skip - we already attempted known names
-    }
-  }
-
-  function thisAddStaticObjectsFromLayer(scene, objLayer) {
-    const created = [];
-    for (const obj of objLayer.objects) {
-      if (obj.rectangle || obj.width || obj.height) {
-        const x = obj.x + (obj.width || 0) / 2;
-        const y = obj.y + (obj.height || 0) / 2;
-        const w = obj.width || 0;
-        const h = obj.height || 0;
-        try {
-          const g = scene.add.rectangle(x, y, w, h).setOrigin(0.5, 0.5).setVisible(false);
-          scene.physics.add.existing(g, true);
-          created.push(g);
-        } catch(e) {
-          if (CONFIG.VERBOSE) console.warn("object collider create error", e);
-        }
-      }
-    }
-    return created;
-  }
-
-  // -------------------------------
-  // Debug drawing (highlight tiles that would collide)
-  // -------------------------------
-  let debugTileGraphics = null;
-  function drawDebugTileGraphics(scene) {
-    if (!scene || !player) return;
-    if (!debugTileGraphics) {
-      debugTileGraphics = scene.add.graphics();
-      debugTileGraphics.setScrollFactor(0);
-      debugTileGraphics.setDepth(12000);
-    }
-    debugTileGraphics.clear();
-    const radiusPx = 64;
-    const startX = player.x - radiusPx;
-    const startY = player.y - radiusPx;
-    const endX = player.x + radiusPx;
-    const endY = player.y + radiusPx;
-    for (const [layerName, layer] of Object.entries(createdLayers)) {
-      if (!layer) continue;
-      try {
-        const tileW = layer.tilemap.tileWidth;
-        const tileH = layer.tilemap.tileHeight;
-        const x0 = Math.floor(startX / tileW) * tileW;
-        const y0 = Math.floor(startY / tileH) * tileH;
-        for (let tx = x0; tx <= endX; tx += tileW) {
-          for (let ty = y0; ty <= endY; ty += tileH) {
-            const tile = layer.getTileAtWorldXY(tx + tileW/2, ty + tileH/2, true);
-            if (tile && tile.index !== -1) {
-              const collides = tile.collides || (tile.properties && tile.properties.collides) || false;
-              if (collides && !CONFIG.IGNORE_TILE_INDICES.includes(tile.index)) {
-                // draw red box on screen at tile's world position
-                debugTileGraphics.lineStyle(2, 0xff0000, 0.9);
-                const screenX = tile.pixelX - scene.cameras.main.worldView.x;
-                const screenY = tile.pixelY - scene.cameras.main.worldView.y;
-                debugTileGraphics.strokeRect(screenX, screenY, tileW, tileH);
-              } else if (CONFIG.IGNORE_TILE_INDICES.includes(tile.index)) {
-                debugTileGraphics.lineStyle(1, 0xffff00, 0.6);
-                const screenX = tile.pixelX - scene.cameras.main.worldView.x;
-                const screenY = tile.pixelY - scene.cameras.main.worldView.y;
-                debugTileGraphics.strokeRect(screenX, screenY, tileW, tileH);
-              }
-            }
+          const tile = tLayer.getTileAtWorldXY(wx, wy, true);
+          if (!tile || tile.index === -1) continue;
+          const tileCollides = tile.collides || (tile.properties && tile.properties.collides) || false;
+          if (IGNORE_TILE_INDICES.includes(tile.index)) {
+            console.log(`  → layer "${layerName}" a tile index=${tile.index} at (${tile.x},${tile.y}) (IGNORED)`);
+          } else if (tileCollides) {
+            realBlocking.push({ layerName, tile });
           }
+        } catch (err) {
+          // ignore
         }
-      } catch(e){}
+      }
+
+      if (realBlocking.length > 0) {
+        console.warn(`⚠️ Player blocked ${c.dir} — check (${wx}, ${wy})`);
+        for (const rb of realBlocking) {
+          const t = rb.tile;
+          console.log(`    → blocking on layer "${rb.layerName}" tile index=${t.index} at (${t.x},${t.y})`, t.properties || {});
+        }
+      } else {
+        // no real blocking tile found -> probably a physics edgecase or world bounds
+        console.log(`(debug) faux blocage détecté ${c.dir} à (${wx}, ${wy}) — aucune tuile 'collides' trouvée.`);
+      }
     }
   }
-  function clearDebugTileGraphics(scene) {
-    if (debugTileGraphics) debugTileGraphics.clear();
-  }
 
-  // -------------------------------
-  // Mobile controls binding
-  // -------------------------------
+  // ---------------------------
+  // MOBILE CONTROLS BINDINGS
+  // ---------------------------
   function bindMobileControls() {
     const bindButton = (id, onDown, onUp) => {
       const el = document.getElementById(id);
       if (!el) return;
-      const start = e => { e.preventDefault(); onDown && onDown(); };
-      const end = e => { e.preventDefault(); onUp && onUp(); };
+      const start = (e) => { e.preventDefault(); onDown && onDown(); };
+      const end = (e) => { e.preventDefault(); onUp && onUp(); };
       el.addEventListener("touchstart", start, { passive:false });
       el.addEventListener("touchend", end, { passive:false });
       el.addEventListener("mousedown", start);
       el.addEventListener("mouseup", end);
       el.addEventListener("mouseleave", end);
     };
+
     bindButton("btn-up",    () => mobileInput.up = true,    () => mobileInput.up = false);
     bindButton("btn-down",  () => mobileInput.down = true,  () => mobileInput.down = false);
     bindButton("btn-left",  () => mobileInput.left = true,  () => mobileInput.left = false);
     bindButton("btn-right", () => mobileInput.right = true, () => mobileInput.right = false);
     bindButton("btn-run",   () => mobileInput.run = true,   () => mobileInput.run = false);
+
     const eBtn = document.getElementById("btn-interact");
     if (eBtn) {
-      const tap = evt => { evt.preventDefault(); if (currentPOI) showInteraction(currentPOI); };
+      const tap = (evt) => { evt.preventDefault(); if (currentPOI) showInteraction(currentPOI); };
       eBtn.addEventListener("touchstart", tap, { passive:false });
       eBtn.addEventListener("mousedown", tap);
     }
+
+    // godmode button handled earlier
   }
 
-  // -------------------------------
-  // Mobile God button creation
-  // -------------------------------
-  function createMobileGodButton() {
-    let btn = document.getElementById("btn-godmode");
-    if (!btn) {
-      btn = document.createElement("button");
-      btn.id = "btn-godmode";
-      btn.innerText = "GOD";
-      Object.assign(btn.style, {
-        position:"fixed", left:"12px", bottom:"12px", zIndex:99999, padding:"10px 14px", borderRadius:"8px",
-        background:"rgba(0,0,0,0.6)", color:"#fff", border:"1px solid rgba(255,255,255,0.12)"
-      });
-      document.body.appendChild(btn);
-    }
-    const toggle = (e)=>{ e.preventDefault(); toggleGodMode(getScene()); };
-    btn.addEventListener("touchstart", toggle, { passive:false });
-    btn.addEventListener("mousedown", toggle);
-    setMobileGodButtonState(!collisionsEnabled); // reflect current state
+  // ---------------------------
+  // Utility functions
+  // ---------------------------
+  function escapeHtml(s) {
+    if (!s) return "";
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  function escapeAttr(s) { return escapeHtml(s); }
+
+  function getScene() {
+    return (player && player.scene) ? player.scene : game.scene.scenes[0];
   }
 
-  function setMobileGodButtonState(active) {
-    const btn = document.getElementById("btn-godmode");
-    if (!btn) return;
-    if (active) {
-      btn.style.background = "rgba(200,0,0,0.9)";
-      btn.style.color = "#fff";
-    } else {
-      btn.style.background = "rgba(0,0,0,0.6)";
-      btn.style.color = "#fff";
-    }
-  }
-
-  // -------------------------------
-  // Player debug box (optional) - shows hitbox visually
-  // -------------------------------
-  let playerDebugRect = null;
-  function createPlayerDebugBox(scene) {
-    if (playerDebugRect) return;
-    playerDebugRect = scene.add.graphics().setDepth(12001);
-    scene.events.on("postupdate", () => {
-      if (!player || !player.body) return;
-      playerDebugRect.clear();
-      const bx = player.body.x - scene.cameras.main.worldView.x;
-      const by = player.body.y - scene.cameras.main.worldView.y;
-      playerDebugRect.lineStyle(1, 0x00ff00, 0.9);
-      playerDebugRect.strokeRect(bx, by, player.body.width, player.body.height);
-    });
-  }
-
-  // -------------------------------
-  // Small UI helper: temporary on-screen notice
-  // -------------------------------
-  function showTempNotice(text, ms=1000) {
-    let el = document.getElementById("tmp-notice");
+  // Temporary onscreen debug notice
+  function showTempDebugNotice(text, ms = 1200) {
+    let el = document.getElementById("temp-debug");
     if (!el) {
       el = document.createElement("div");
-      el.id = "tmp-notice";
-      Object.assign(el.style, { position:"fixed", right:"12px", top:"12px", background:"rgba(0,0,0,0.8)", color:"#fff", padding:"8px 12px", borderRadius:"6px", zIndex:99999 });
+      el.id = "temp-debug";
+      Object.assign(el.style, {
+        position: "fixed", right: "12px", top: "12px", background: "rgba(0,0,0,0.7)",
+        color: "#fff", padding: "8px 12px", borderRadius: "6px", zIndex: 999999, fontFamily: "sans-serif"
+      });
       document.body.appendChild(el);
     }
     el.innerText = text;
     el.style.display = "block";
-    setTimeout(()=>{ el.style.display = "none"; }, ms);
+    clearTimeout(godModeNoticeTimeout);
+    godModeNoticeTimeout = setTimeout(()=>{ el.style.display = "none"; }, ms);
   }
 
-  // -------------------------------
-  // Utilities
-  // -------------------------------
-  function escapeHtml(s) {
-    if (!s) return "";
-    return String(s).replace(/[&<>"']/g, function (m) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; });
+  // ---------------------------
+  // Minimal production debug: warn only when real collidable tile found
+  // (we already have debugCheckBlocking above; keep both)
+  // ---------------------------
+  function debugCheckBlockingProd() {
+    // Not used by default, but kept if needed
   }
-  function escapeAttr(s) { return escapeHtml(s); }
-  function getScene() { return (player && player.scene) ? player.scene : (window._phaser_game && window._phaser_game.scene ? window._phaser_game.scene.scenes[0] : null); }
 
-  // -------------------------------
-  // Expose small helper for console debugging (optional)
-  // -------------------------------
-  window._erasmusDebug = {
-    toggleGod: () => { toggleGodMode(getScene()); },
-    enableCollisions: () => { collisionsEnabled = true; enableCollisions(getScene()); },
-    disableCollisions: () => { collisionsEnabled = false; disableCollisions(getScene()); },
-    drawDebugTiles: (on) => { debugDrawTiles = !!on; if (!on) clearDebugTileGraphics(getScene()); }
-  };
-
-  // -------------------------------
+  // ---------------------------
   // End window.onload
-  // -------------------------------
-}; // end window.onload
+  // ---------------------------
+}; // window.onload end
 
-// ======================================================
-// End of main_fixed_erasmus_full.js
-// ======================================================
+// =========================================================
+// End of main_full_erasmus_all_in_one.js
+// =========================================================
